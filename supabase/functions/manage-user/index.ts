@@ -183,6 +183,14 @@ Deno.serve(async (req) => {
         });
         if (error) throw new Error(error.message);
         result.message = "Password reset successfully";
+
+        await adminClient.from("notifications").insert({
+          user_id: target_user_id,
+          title: "Password Reset",
+          message: "Your password has been reset by an administrator. Please log in with your new password.",
+          type: "password_reset",
+          reference_type: "account",
+        });
         break;
       }
 
