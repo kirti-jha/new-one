@@ -64,12 +64,27 @@ Deno.serve(async (req) => {
       });
     }
 
-    const validRoles = ["super_distributor", "master_distributor", "distributor", "retailer"];
+    const validRoles = ["admin", "super_distributor", "master_distributor", "distributor", "retailer"];
     if (!validRoles.includes(role)) {
-      return new Response(JSON.stringify({ error: "Invalid role. Admin accounts cannot be created this way." }), {
+      return new Response(JSON.stringify({ error: "Invalid role." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Only master admin can create other admins
+    if (role === "admin") {
+      const { data: callerProfile } = await adminClient
+        .from("profiles")
+        .select("is_master_admin")
+        .eq("user_id", callerUser.id)
+        .single();
+      if (!callerProfile?.is_master_admin) {
+        return new Response(JSON.stringify({ error: "Only the Master Admin can create staff admin accounts." }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Create the auth user
