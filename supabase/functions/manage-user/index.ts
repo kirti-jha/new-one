@@ -140,6 +140,14 @@ Deno.serve(async (req) => {
         });
         if (error) throw new Error(error.message);
         result.message = "User blocked";
+
+        await adminClient.from("notifications").insert({
+          user_id: target_user_id,
+          title: "Account Blocked",
+          message: "Your account has been blocked. Contact your administrator for assistance.",
+          type: "account_blocked",
+          reference_type: "account",
+        });
         break;
       }
 
