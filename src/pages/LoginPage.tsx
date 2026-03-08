@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Zap, Eye, EyeOff } from "lucide-react";
+import { Zap, Eye, EyeOff, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
@@ -76,11 +76,12 @@ export default function LoginPage() {
             </div>
           </div>
           <Button type="submit" className="w-full bg-gradient-primary text-primary-foreground font-semibold" disabled={loading}>
+            <LogIn className="w-4 h-4 mr-2" />
             {loading ? "Signing in..." : "Sign In"}
           </Button>
-          <p className="text-center text-sm text-muted-foreground">
-            Don't have an account?{" "}
-            <Link to="/signup" className="text-primary hover:underline">Sign up</Link>
+          <p className="text-center text-xs text-muted-foreground">
+            Accounts are created by your administrator.<br />
+            Contact your upline or admin for access.
           </p>
         </form>
       </div>
