@@ -55,6 +55,7 @@ const navItems: NavItem[] = [
   { label: "Sound Box", icon: Box, path: "/dashboard/sound-box", section: "Services" },
   { label: "Commissions", icon: BarChart3, path: "/dashboard/commissions", minRole: "distributor", section: "Management" },
   { label: "KYC", icon: FileText, path: "/dashboard/kyc", minRole: "distributor", section: "Management" },
+  { label: "Reports", icon: FileSpreadsheet, path: "/dashboard/reports", section: "Management" },
   { label: "Security", icon: Shield, path: "/dashboard/security", allowedRoles: ["admin"], section: "Management" },
   { label: "Settings", icon: Settings, path: "/dashboard/settings", allowedRoles: ["admin"], section: "Management" },
 ];
