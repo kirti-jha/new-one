@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Users, Search, UserPlus, CheckCircle2, XCircle, Clock,
-  MoreVertical, Pencil, ShieldAlert, ShieldCheck, KeyRound,
+  MoreVertical, Pencil, ShieldAlert, ShieldCheck, KeyRound, LogIn, Settings2, ToggleLeft, ToggleRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
@@ -40,6 +41,10 @@ const ROLE_LABELS: Record<AppRole, string> = {
   retailer: "Retailer",
 };
 
+const ROLE_LEVEL: Record<string, number> = {
+  admin: 1, super_distributor: 2, master_distributor: 3, distributor: 4, retailer: 5,
+};
+
 const CREATABLE_ROLES: { value: AppRole; label: string }[] = [
   { value: "super_distributor", label: "Super Distributor" },
   { value: "master_distributor", label: "Master Distributor" },
@@ -53,14 +58,23 @@ const kycBadge: Record<string, { icon: typeof CheckCircle2; className: string }>
   rejected: { icon: XCircle, className: "text-destructive" },
 };
 
+interface ServiceToggle {
+  service_key: string;
+  service_label: string;
+  is_enabled: boolean; // global
+  user_disabled: boolean; // per-user override
+}
+
 export default function DashboardUsers() {
   const { user: currentUser, role: myRole } = useAuth();
   const { toast } = useToast();
   const isAdmin = myRole === "admin";
+  const canManage = myRole ? ROLE_LEVEL[myRole] < 5 : false; // everyone except retailer
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [impersonating, setImpersonating] = useState(false);
 
   // Create dialog
   const [createOpen, setCreateOpen] = useState(false);
@@ -89,6 +103,12 @@ export default function DashboardUsers() {
   const [resetOpen, setResetOpen] = useState(false);
   const [resetUser, setResetUser] = useState<UserRow | null>(null);
   const [newPassword, setNewPassword] = useState("");
+
+  // Service management dialog
+  const [serviceOpen, setServiceOpen] = useState(false);
+  const [serviceUser, setServiceUser] = useState<UserRow | null>(null);
+  const [serviceToggles, setServiceToggles] = useState<ServiceToggle[]>([]);
+  const [togglingService, setTogglingService] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -202,6 +222,77 @@ export default function DashboardUsers() {
     await invokeManageUser(action, u.user_id);
   };
 
+  const handleImpersonate = async (u: UserRow) => {
+    setImpersonating(true);
+    try {
+      const res = await supabase.functions.invoke("impersonate-user", {
+        body: { target_user_id: u.user_id },
+      });
+      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
+
+      const { access_token, refresh_token } = res.data;
+      if (!access_token || !refresh_token) throw new Error("Failed to get session tokens");
+
+      // Store original session info for returning later
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      if (currentSession) {
+        localStorage.setItem("impersonation_return_token", currentSession.access_token);
+        localStorage.setItem("impersonation_return_refresh", currentSession.refresh_token!);
+      }
+
+      // Set the new session
+      await supabase.auth.setSession({ access_token, refresh_token });
+
+      toast({ title: `Logged in as ${u.full_name}`, description: "You are now viewing as this user. Refresh to see their dashboard." });
+
+      // Force reload to apply new session
+      window.location.href = "/dashboard";
+    } catch (err: any) {
+      toast({ title: "Impersonation failed", description: err.message, variant: "destructive" });
+    } finally {
+      setImpersonating(false);
+    }
+  };
+
+  const openServiceManagement = async (u: UserRow) => {
+    setServiceUser(u);
+    // Fetch global services and user overrides
+    const [{ data: services }, { data: overrides }] = await Promise.all([
+      supabase.from("service_config").select("service_key, service_label, is_enabled").order("service_label"),
+      supabase.from("user_service_overrides").select("service_key, is_enabled").eq("user_id", u.user_id),
+    ]);
+
+    const overrideMap = new Map((overrides || []).map((o: any) => [o.service_key, o.is_enabled]));
+
+    setServiceToggles(
+      (services || []).map((s: any) => ({
+        service_key: s.service_key,
+        service_label: s.service_label,
+        is_enabled: s.is_enabled,
+        user_disabled: overrideMap.has(s.service_key) && !overrideMap.get(s.service_key),
+      }))
+    );
+    setServiceOpen(true);
+  };
+
+  const handleServiceToggle = async (serviceKey: string, currentlyDisabled: boolean) => {
+    if (!serviceUser) return;
+    setTogglingService(serviceKey);
+    try {
+      const ok = await invokeManageUser("toggle_service", serviceUser.user_id, {
+        service_key: serviceKey,
+        is_enabled: currentlyDisabled, // if currently disabled, enable it
+      });
+      if (ok) {
+        setServiceToggles((prev) =>
+          prev.map((s) => s.service_key === serviceKey ? { ...s, user_disabled: !currentlyDisabled } : s)
+        );
+      }
+    } finally {
+      setTogglingService(null);
+    }
+  };
+
   const openEdit = (u: UserRow) => {
     setEditUser(u);
     setEditName(u.full_name);
@@ -229,6 +320,14 @@ export default function DashboardUsers() {
       u.business_name?.toLowerCase().includes(q) || u.role?.toLowerCase().includes(q);
   });
 
+  // Determine which users the current user can manage
+  const canManageUser = (u: UserRow) => {
+    if (!myRole || !u.role) return false;
+    if (u.user_id === currentUser?.id) return false;
+    if (isAdmin) return true;
+    return ROLE_LEVEL[myRole] < ROLE_LEVEL[u.role];
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -236,12 +335,37 @@ export default function DashboardUsers() {
           <h1 className="text-2xl font-heading font-bold text-foreground">User Management</h1>
           <p className="text-sm text-muted-foreground mt-1">Create and manage your distribution hierarchy.</p>
         </div>
-        {isAdmin && (
+        {(isAdmin || canManage) && (
           <Button variant="hero" size="sm" onClick={() => setCreateOpen(true)}>
             <UserPlus className="w-4 h-4 mr-1.5" /> Create User
           </Button>
         )}
       </div>
+
+      {/* Return from impersonation banner */}
+      {localStorage.getItem("impersonation_return_token") && (
+        <div className="p-3 rounded-xl border border-warning/50 bg-warning/10 flex items-center justify-between">
+          <span className="text-sm text-foreground font-medium">
+            ⚠️ You are viewing as an impersonated user.
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              const token = localStorage.getItem("impersonation_return_token");
+              const refresh = localStorage.getItem("impersonation_return_refresh");
+              if (token && refresh) {
+                await supabase.auth.setSession({ access_token: token, refresh_token: refresh });
+                localStorage.removeItem("impersonation_return_token");
+                localStorage.removeItem("impersonation_return_refresh");
+                window.location.href = "/dashboard/users";
+              }
+            }}
+          >
+            Return to Your Account
+          </Button>
+        </div>
+      )}
 
       <div className="flex items-center gap-2 max-w-sm px-3 py-2 rounded-lg border border-border bg-card">
         <Search className="w-4 h-4 text-muted-foreground" />
@@ -267,8 +391,8 @@ export default function DashboardUsers() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  {["Name", "Role", "Phone", "Business", "KYC", "Status", ...(isAdmin ? ["Actions"] : [])].map((h, i) => (
-                    <th key={h} className={`text-left py-3 px-5 text-xs font-medium text-muted-foreground uppercase tracking-wider ${i === 2 || i === 3 ? "hidden sm:table-cell" : ""} ${i === 3 ? "hidden md:table-cell" : ""}`}>{h}</th>
+                  {["Name", "Role", "Phone", "Business", "KYC", "Status", "Actions"].map((h, i) => (
+                    <th key={h} className={`text-left py-3 px-5 text-xs font-medium text-muted-foreground uppercase tracking-wider ${i === 2 ? "hidden sm:table-cell" : ""} ${i === 3 ? "hidden md:table-cell" : ""}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -276,6 +400,7 @@ export default function DashboardUsers() {
                 {filtered.map((u) => {
                   const kyc = kycBadge[u.kyc_status] || kycBadge.pending;
                   const isSelf = u.user_id === currentUser?.id;
+                  const canManageThis = canManageUser(u);
                   return (
                     <tr key={u.id} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
                       <td className="py-3 px-5 font-medium text-foreground">{u.full_name || "—"}</td>
@@ -295,43 +420,54 @@ export default function DashboardUsers() {
                           {u.status}
                         </span>
                       </td>
-                      {isAdmin && (
-                        <td className="py-3 px-5">
-                          {isSelf ? (
-                            <span className="text-xs text-muted-foreground">You</span>
-                          ) : (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <MoreVertical className="w-4 h-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => openEdit(u)}>
-                                  <Pencil className="w-4 h-4 mr-2" /> Edit Profile
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => openRoleChange(u)}>
-                                  <ShieldAlert className="w-4 h-4 mr-2" /> Change Role
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => openReset(u)}>
-                                  <KeyRound className="w-4 h-4 mr-2" /> Reset Password
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => handleToggleBlock(u)}
-                                  className={u.status === "active" ? "text-destructive" : "text-success"}
-                                >
-                                  {u.status === "active" ? (
-                                    <><XCircle className="w-4 h-4 mr-2" /> Block User</>
-                                  ) : (
-                                    <><ShieldCheck className="w-4 h-4 mr-2" /> Unblock User</>
-                                  )}
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
-                        </td>
-                      )}
+                      <td className="py-3 px-5">
+                        {isSelf ? (
+                          <span className="text-xs text-muted-foreground">You</span>
+                        ) : canManageThis ? (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleImpersonate(u)} disabled={impersonating}>
+                                <LogIn className="w-4 h-4 mr-2" /> Login as User
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => openEdit(u)}>
+                                <Pencil className="w-4 h-4 mr-2" /> Edit Profile
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openServiceManagement(u)}>
+                                <Settings2 className="w-4 h-4 mr-2" /> Manage Services
+                              </DropdownMenuItem>
+                              {isAdmin && (
+                                <>
+                                  <DropdownMenuItem onClick={() => openRoleChange(u)}>
+                                    <ShieldAlert className="w-4 h-4 mr-2" /> Change Role
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => openReset(u)}>
+                                    <KeyRound className="w-4 h-4 mr-2" /> Reset Password
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => handleToggleBlock(u)}
+                                className={u.status === "active" ? "text-destructive" : "text-success"}
+                              >
+                                {u.status === "active" ? (
+                                  <><XCircle className="w-4 h-4 mr-2" /> Block User</>
+                                ) : (
+                                  <><ShieldCheck className="w-4 h-4 mr-2" /> Unblock User</>
+                                )}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -440,6 +576,36 @@ export default function DashboardUsers() {
               <Button variant="outline" onClick={() => setResetOpen(false)}>Cancel</Button>
               <Button onClick={handleResetSave} disabled={processing}><KeyRound className="w-4 h-4 mr-1.5" />{processing ? "Resetting..." : "Reset Password"}</Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage Services Dialog */}
+      <Dialog open={serviceOpen} onOpenChange={setServiceOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Manage Services</DialogTitle>
+            <DialogDescription>Enable or disable individual services for {serviceUser?.full_name}.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 mt-2 max-h-[400px] overflow-y-auto">
+            {serviceToggles.map((s) => (
+              <div
+                key={s.service_key}
+                className={`flex items-center justify-between p-3 rounded-lg border ${!s.is_enabled ? "opacity-50" : s.user_disabled ? "border-destructive/30 bg-destructive/5" : "border-border"}`}
+              >
+                <div>
+                  <p className="text-sm font-medium text-foreground">{s.service_label}</p>
+                  {!s.is_enabled && (
+                    <p className="text-[10px] text-destructive">Globally disabled by admin</p>
+                  )}
+                </div>
+                <Switch
+                  checked={s.is_enabled && !s.user_disabled}
+                  disabled={!s.is_enabled || togglingService === s.service_key}
+                  onCheckedChange={() => handleServiceToggle(s.service_key, s.user_disabled)}
+                />
+              </div>
+            ))}
           </div>
         </DialogContent>
       </Dialog>
