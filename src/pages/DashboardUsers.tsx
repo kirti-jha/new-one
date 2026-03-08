@@ -302,6 +302,7 @@ export default function DashboardUsers() {
   };
 
   const handleImpersonate = async (u: UserRow) => {
+  const handleImpersonate = async (u: UserRow) => {
     setImpersonating(true);
     try {
       const res = await supabase.functions.invoke("impersonate-user", {
@@ -312,15 +313,14 @@ export default function DashboardUsers() {
       const { access_token, refresh_token } = res.data;
       if (!access_token || !refresh_token) throw new Error("Failed to get session tokens");
 
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      if (currentSession) {
-        localStorage.setItem("impersonation_return_token", currentSession.access_token);
-        localStorage.setItem("impersonation_return_refresh", currentSession.refresh_token!);
-      }
-
-      await supabase.auth.setSession({ access_token, refresh_token });
-      toast({ title: `Logged in as ${u.full_name}`, description: "You are now viewing as this user." });
-      window.location.href = "/dashboard";
+      // Open impersonated session in a NEW tab, keeping admin session intact
+      const params = new URLSearchParams({
+        access_token,
+        refresh_token,
+        name: u.full_name || "User",
+      });
+      window.open(`${window.location.origin}/impersonate?${params.toString()}`, "_blank");
+      toast({ title: `Opened ${u.full_name}'s session`, description: "A new tab has been opened with the impersonated session." });
     } catch (err: any) {
       toast({ title: "Impersonation failed", description: err.message, variant: "destructive" });
     } finally {
@@ -454,20 +454,11 @@ export default function DashboardUsers() {
         )}
       </div>
 
-      {localStorage.getItem("impersonation_return_token") && (
+      {sessionStorage.getItem("impersonated_as") && (
         <div className="p-3 rounded-xl border border-warning/50 bg-warning/10 flex items-center justify-between">
-          <span className="text-sm text-foreground font-medium">⚠️ You are viewing as an impersonated user.</span>
-          <Button variant="outline" size="sm" onClick={async () => {
-            const token = localStorage.getItem("impersonation_return_token");
-            const refresh = localStorage.getItem("impersonation_return_refresh");
-            if (token && refresh) {
-              await supabase.auth.setSession({ access_token: token, refresh_token: refresh });
-              localStorage.removeItem("impersonation_return_token");
-              localStorage.removeItem("impersonation_return_refresh");
-              window.location.href = "/dashboard/users";
-            }
-          }}>
-            Return to Your Account
+          <span className="text-sm text-foreground font-medium">⚠️ You are viewing as: {sessionStorage.getItem("impersonated_as")}</span>
+          <Button variant="outline" size="sm" onClick={() => window.close()}>
+            Close This Tab
           </Button>
         </div>
       )}
@@ -832,3 +823,4 @@ export default function DashboardUsers() {
     </div>
   );
 }
+
