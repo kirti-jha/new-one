@@ -114,22 +114,22 @@ export default function RetailerOverview({ name }: { name: string }) {
         ))}
       </div>
 
-      {/* Quick Actions */}
+      {/* All Services */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base font-heading flex items-center gap-2">
-            <Zap className="w-4 h-4 text-primary" /> Quick Actions
+            <Zap className="w-4 h-4 text-primary" /> Services
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-            {quickActions.map((action) => (
-              <Link key={action.label} to={action.path}>
-                <div className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <action.icon className={`w-5 h-5 ${action.color}`} />
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-9 gap-3">
+            {allServices.map((svc) => (
+              <Link key={svc.label} to={svc.path}>
+                <div className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer group">
+                  <div className={`w-11 h-11 rounded-xl ${svc.bg} flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                    <svc.icon className={`w-5 h-5 ${svc.color}`} />
                   </div>
-                  <span className="text-xs font-medium text-foreground">{action.label}</span>
+                  <span className="text-[11px] font-medium text-foreground text-center leading-tight">{svc.label}</span>
                 </div>
               </Link>
             ))}
