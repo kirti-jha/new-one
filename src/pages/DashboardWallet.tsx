@@ -302,8 +302,13 @@ export default function DashboardWallet() {
         </div>
         <div className="flex gap-2 flex-wrap">
           {isAdmin && (
-            <Button variant="hero" size="sm" onClick={() => setTopUpOpen(true)}>
-              <Plus className="w-4 h-4 mr-1" /> Top Up
+            <Button variant="hero" size="sm" onClick={() => setBankDepositOpen(true)}>
+              <Building2 className="w-4 h-4 mr-1" /> Add Fund (Bank)
+            </Button>
+          )}
+          {isAdmin && (
+            <Button variant="outline" size="sm" onClick={() => setTopUpOpen(true)}>
+              <Plus className="w-4 h-4 mr-1" /> Top Up User
             </Button>
           )}
           {role !== "retailer" && (
