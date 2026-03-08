@@ -90,6 +90,12 @@ export default function DashboardWallet() {
   // PG form
   const [pgAmount, setPgAmount] = useState("");
 
+  // Bank deposit form (admin self top-up)
+  const [bankAmount, setBankAmount] = useState("");
+  const [bankRef, setBankRef] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [bankDesc, setBankDesc] = useState("");
+
   const fetchWallet = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase

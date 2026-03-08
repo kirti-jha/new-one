@@ -253,6 +253,67 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === "admin_bank_topup") {
+      if (callerRole.role !== "admin") {
+        return new Response(JSON.stringify({ error: "Only admins can use bank top-up" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { amount, bank_reference, bank_name, description } = body;
+      if (!amount || amount <= 0) {
+        return new Response(JSON.stringify({ error: "Invalid amount" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (!bank_reference) {
+        return new Response(JSON.stringify({ error: "Bank reference is required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      let { data: wallet } = await adminClient
+        .from("wallets")
+        .select("*")
+        .eq("user_id", caller.id)
+        .single();
+
+      if (!wallet) {
+        const { data: nw } = await adminClient
+          .from("wallets")
+          .insert({ user_id: caller.id, balance: 0 })
+          .select()
+          .single();
+        wallet = nw;
+      }
+
+      const newBalance = parseFloat(wallet!.balance as any) + parseFloat(amount);
+
+      await adminClient
+        .from("wallets")
+        .update({ balance: newBalance })
+        .eq("user_id", caller.id);
+
+      const desc = `Bank deposit${bank_name ? ` from ${bank_name}` : ""} | Ref: ${bank_reference}${description ? ` | ${description}` : ""}`;
+
+      await adminClient.from("wallet_transactions").insert({
+        to_user_id: caller.id,
+        amount: parseFloat(amount),
+        type: "bank_deposit",
+        description: desc,
+        reference: bank_reference,
+        to_balance_after: newBalance,
+        created_by: caller.id,
+      });
+
+      return new Response(JSON.stringify({ success: true, new_balance: newBalance }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "reverse") {
       if (callerRole.role !== "admin") {
         return new Response(JSON.stringify({ error: "Only admins can reverse transactions" }), {
