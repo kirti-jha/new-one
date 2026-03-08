@@ -402,16 +402,47 @@ export default function DashboardUsers() {
     return ROLE_LEVEL[myRole] < ROLE_LEVEL[u.role];
   };
 
+  const formatINR = (v: number) => `₹${v.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+
+  const totalUsers = users.filter((u) => u.role !== "admin").length;
+  const distributorCount = users.filter((u) => u.role === "distributor" || u.role === "master_distributor" || u.role === "super_distributor").length;
+  const retailerCount = users.filter((u) => u.role === "retailer").length;
+  const activeCount = users.filter((u) => u.status === "active" && u.role !== "admin").length;
+  const deactivatedCount = users.filter((u) => u.status !== "active" && u.role !== "admin").length;
+
+  const statsCards = [
+    { label: "Total Users", value: totalUsers, sub: formatINR(walletTotals.total || 0), icon: Users, color: "text-primary bg-primary/10" },
+    { label: "Distributors", value: distributorCount, sub: formatINR(walletTotals.distributor || 0), icon: UserPlus, color: "text-destructive bg-destructive/10" },
+    { label: "Retailers", value: retailerCount, sub: formatINR(walletTotals.retailer || 0), icon: Store, color: "text-chart-2 bg-chart-2/10" },
+    { label: "Active", value: activeCount, sub: null, icon: UserCheck, color: "text-success bg-success/10" },
+    { label: "Deactivated", value: deactivatedCount, sub: null, icon: UserX, color: "text-warning bg-warning/10" },
+  ];
+
+  const handleSearch = () => {
+    setSearch(searchInput);
+  };
+
+  const handleClear = () => {
+    setSearchInput("");
+    setSearch("");
+    setFilterRole("all");
+    setFilterStatus("all");
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-heading font-bold text-foreground">User Management</h1>
-          <p className="text-sm text-muted-foreground mt-1">Create and manage your distribution hierarchy.</p>
+      {/* Header */}
+      <div className="rounded-2xl bg-gradient-primary p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Users className="w-7 h-7 text-primary-foreground" />
+          <div>
+            <h1 className="text-2xl font-heading font-bold text-primary-foreground">User Management</h1>
+            <p className="text-sm text-primary-foreground/70 mt-0.5">Manage all registered users, distributors & retailers</p>
+          </div>
         </div>
         {(isAdmin || canManage) && (
-          <Button variant="hero" size="sm" onClick={() => setCreateOpen(true)}>
-            <UserPlus className="w-4 h-4 mr-1.5" /> Create User
+          <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)} className="bg-primary-foreground/10 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/20">
+            <UserPlus className="w-4 h-4 mr-1.5" /> Add New User
           </Button>
         )}
       </div>
@@ -434,10 +465,65 @@ export default function DashboardUsers() {
         </div>
       )}
 
-      <div className="flex items-center gap-2 max-w-sm px-3 py-2 rounded-lg border border-border bg-card">
-        <Search className="w-4 h-4 text-muted-foreground" />
-        <input type="text" placeholder="Search by name, phone, role..." value={search} onChange={(e) => setSearch(e.target.value)}
-          className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none flex-1" />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        {statsCards.map((stat) => (
+          <div key={stat.label} className="rounded-xl bg-gradient-card border border-border p-4 text-center">
+            <div className={`w-10 h-10 rounded-full ${stat.color} flex items-center justify-center mx-auto mb-2`}>
+              <stat.icon className="w-5 h-5" />
+            </div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{stat.label}</p>
+            <p className="text-2xl font-heading font-bold text-foreground mt-1">{loading ? "..." : stat.value}</p>
+            {stat.sub && <p className="text-xs text-muted-foreground mt-0.5">{loading ? "..." : stat.sub}</p>}
+          </div>
+        ))}
+      </div>
+
+      {/* Search & Filter Bar */}
+      <div className="rounded-xl bg-gradient-card border border-border p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_180px_180px_auto_auto] gap-3 items-end">
+          <div className="space-y-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Search</span>
+            <Input
+              placeholder="Search by name, phone, business..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              className="bg-secondary/50"
+            />
+          </div>
+          <div className="space-y-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Role</span>
+            <Select value={filterRole} onValueChange={setFilterRole}>
+              <SelectTrigger className="bg-secondary/50"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
+                <SelectItem value="super_distributor">Super Distributor</SelectItem>
+                <SelectItem value="master_distributor">Master Distributor</SelectItem>
+                <SelectItem value="distributor">Distributor</SelectItem>
+                <SelectItem value="retailer">Retailer</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Status</span>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="bg-secondary/50"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="blocked">Blocked</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button onClick={handleSearch} className="bg-gradient-primary text-primary-foreground font-semibold">
+            <Search className="w-4 h-4 mr-1.5" /> Search
+          </Button>
+          <Button variant="outline" onClick={handleClear}>
+            <XCircle className="w-4 h-4 mr-1.5" /> Clear
+          </Button>
+        </div>
+      </div>
       </div>
 
       <div className="rounded-xl bg-gradient-card border border-border overflow-hidden">
