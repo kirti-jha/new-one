@@ -131,8 +131,11 @@ export default function DashboardUsers() {
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
-    const { data: profiles } = await supabase.from("profiles").select("*");
-    const { data: roles } = await supabase.from("user_roles").select("user_id, role");
+    const [{ data: profiles }, { data: roles }, { data: wallets }] = await Promise.all([
+      supabase.from("profiles").select("*"),
+      supabase.from("user_roles").select("user_id, role"),
+      supabase.from("wallets").select("user_id, balance"),
+    ]);
     if (profiles && roles) {
       const roleMap = new Map(roles.map((r) => [r.user_id, r.role]));
       const merged: UserRow[] = profiles.map((p) => ({ ...p, role: roleMap.get(p.user_id) as AppRole | undefined }));
@@ -142,6 +145,17 @@ export default function DashboardUsers() {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
       setUsers(merged);
+
+      // Compute wallet totals by role
+      const balanceMap = new Map((wallets || []).map((w: any) => [w.user_id, parseFloat(w.balance)]));
+      const totals: Record<string, number> = { total: 0, distributor: 0, retailer: 0 };
+      merged.forEach((u) => {
+        const bal = balanceMap.get(u.user_id) || 0;
+        totals.total += bal;
+        if (u.role === "distributor") totals.distributor += bal;
+        if (u.role === "retailer") totals.retailer += bal;
+      });
+      setWalletTotals(totals);
     }
     setLoading(false);
   }, []);
