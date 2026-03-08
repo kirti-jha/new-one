@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Wallet, ArrowLeftRight, Settings,
   Shield, Zap, ChevronLeft, Fingerprint, Send, Receipt, CreditCard, BarChart3,
   FileText, Smartphone, Banknote, Building2, CreditCard as CreditCardIcon,
-  Plane, Package, ShieldCheck, Landmark, Radio, Box, QrCode,
+  Plane, Package, ShieldCheck, Landmark, Radio, Box, QrCode, FileSpreadsheet,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";

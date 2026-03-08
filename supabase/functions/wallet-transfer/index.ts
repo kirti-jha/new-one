@@ -55,7 +55,6 @@ Deno.serve(async (req) => {
     };
 
     if (action === "top_up") {
-      // Admin-only: top up any user's wallet
       if (callerRole.role !== "admin") {
         return new Response(JSON.stringify({ error: "Only admins can top up wallets" }), {
           status: 403,
@@ -71,7 +70,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Get or create target wallet
       let { data: wallet } = await adminClient
         .from("wallets")
         .select("*")
@@ -109,7 +107,6 @@ Deno.serve(async (req) => {
     }
 
     if (action === "transfer") {
-      // Hierarchical transfer: caller sends to a downline user
       const { to_user_id, amount, description } = body;
       if (!to_user_id || !amount || amount <= 0) {
         return new Response(JSON.stringify({ error: "Invalid to_user_id or amount" }), {
@@ -125,7 +122,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Verify hierarchy: caller must be higher role than target
       const { data: targetRole } = await adminClient
         .from("user_roles")
         .select("role")
@@ -149,7 +145,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Get sender wallet
       const { data: senderWallet } = await adminClient
         .from("wallets")
         .select("*")
@@ -163,7 +158,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Get or create receiver wallet
       let { data: receiverWallet } = await adminClient
         .from("wallets")
         .select("*")
@@ -182,11 +176,9 @@ Deno.serve(async (req) => {
       const senderNewBalance = parseFloat(senderWallet.balance as any) - parseFloat(amount);
       const receiverNewBalance = parseFloat(receiverWallet!.balance as any) + parseFloat(amount);
 
-      // Update both wallets
       await adminClient.from("wallets").update({ balance: senderNewBalance }).eq("user_id", caller.id);
       await adminClient.from("wallets").update({ balance: receiverNewBalance }).eq("user_id", to_user_id);
 
-      // Record transaction
       await adminClient.from("wallet_transactions").insert({
         from_user_id: caller.id,
         to_user_id,
@@ -207,8 +199,61 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === "pg_add_fund") {
+      // Simulated PG: add funds to caller's own main wallet
+      const { amount } = body;
+      if (!amount || amount <= 0) {
+        return new Response(JSON.stringify({ error: "Invalid amount" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Admins don't need PG
+      if (callerRole.role === "admin") {
+        return new Response(JSON.stringify({ error: "Admins should use top-up instead" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      let { data: wallet } = await adminClient
+        .from("wallets")
+        .select("*")
+        .eq("user_id", caller.id)
+        .single();
+
+      if (!wallet) {
+        const { data: nw } = await adminClient
+          .from("wallets")
+          .insert({ user_id: caller.id, balance: 0 })
+          .select()
+          .single();
+        wallet = nw;
+      }
+
+      const newBalance = parseFloat(wallet!.balance as any) + parseFloat(amount);
+
+      await adminClient
+        .from("wallets")
+        .update({ balance: newBalance })
+        .eq("user_id", caller.id);
+
+      await adminClient.from("wallet_transactions").insert({
+        to_user_id: caller.id,
+        amount: parseFloat(amount),
+        type: "pg_add",
+        description: "Fund added via Payment Gateway",
+        to_balance_after: newBalance,
+        created_by: caller.id,
+      });
+
+      return new Response(JSON.stringify({ success: true, new_balance: newBalance }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "reverse") {
-      // Admin-only: reverse a transaction
       if (callerRole.role !== "admin") {
         return new Response(JSON.stringify({ error: "Only admins can reverse transactions" }), {
           status: 403,
@@ -237,7 +282,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Deduct from receiver
       const { data: recWallet } = await adminClient.from("wallets").select("*").eq("user_id", txn.to_user_id).single();
       if (!recWallet || parseFloat(recWallet.balance as any) < parseFloat(txn.amount as any)) {
         return new Response(JSON.stringify({ error: "Receiver has insufficient balance to reverse" }), {
@@ -275,7 +319,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ error: "Unknown action. Use top_up, transfer, or reverse." }), {
+    return new Response(JSON.stringify({ error: "Unknown action. Use top_up, transfer, pg_add_fund, or reverse." }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
