@@ -36,7 +36,7 @@ export default function DashboardTravelPackage() {
               <div className="flex gap-3 text-xs text-muted-foreground my-3">
                 <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{pkg.duration}</span>
                 <span className="flex items-center gap-1"><Users className="w-3 h-3" />{pkg.persons}</span>
-                <span className="flex items-center gap-1"><Star className="w-3 h-3 text-yellow-500" />{pkg.rating}</span>
+                <span className="flex items-center gap-1"><Star className="w-3 h-3 text-primary" />{pkg.rating}</span>
               </div>
 
               <div className="flex flex-wrap gap-1 mb-4">
