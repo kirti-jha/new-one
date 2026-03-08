@@ -15,27 +15,60 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const adminClient = createClient(supabaseUrl, serviceKey);
 
     // Verify caller
-    const adminClient = createClient(supabaseUrl, serviceKey);
-    const { data: { user: caller }, error: authErr } = await adminClient.auth.admin.getUserById(
-      (await createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-        global: { headers: { Authorization: authHeader } },
-      }).auth.getUser()).data.user?.id || ""
-    );
-
+    const callerClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
     if (authErr || !caller) throw new Error("Unauthorized");
 
-    // Verify admin
-    const { data: roleData } = await adminClient
+    // Get caller's role
+    const { data: callerRole } = await adminClient
       .from("user_roles")
       .select("role")
       .eq("user_id", caller.id)
       .single();
-    if (!roleData || roleData.role !== "admin") throw new Error("Only admins can manage users");
+    if (!callerRole) throw new Error("No role assigned");
+
+    const ROLE_LEVEL: Record<string, number> = {
+      admin: 1, super_distributor: 2, master_distributor: 3, distributor: 4, retailer: 5,
+    };
 
     const { action, target_user_id, ...params } = await req.json();
     if (!action || !target_user_id) throw new Error("action and target_user_id required");
+
+    // For non-admin callers, verify they are an ancestor of the target
+    if (callerRole.role !== "admin") {
+      const callerLevel = ROLE_LEVEL[callerRole.role] || 99;
+
+      // Get target's role
+      const { data: targetRoleData } = await adminClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", target_user_id)
+        .single();
+      if (!targetRoleData) throw new Error("Target has no role");
+
+      const targetLevel = ROLE_LEVEL[targetRoleData.role] || 99;
+      if (callerLevel >= targetLevel) throw new Error("Cannot manage users at or above your level");
+
+      // Verify ancestry
+      const { data: targetProfile } = await adminClient
+        .from("profiles")
+        .select("id")
+        .eq("user_id", target_user_id)
+        .single();
+      if (targetProfile) {
+        const { data: isAncestor } = await adminClient.rpc("is_ancestor_of", {
+          _user_id: caller.id,
+          _profile_id: targetProfile.id,
+        });
+        if (!isAncestor) throw new Error("Target user is not in your downline");
+      }
+    }
 
     // Prevent self-modification for dangerous actions
     if (caller.id === target_user_id && ["block", "change_role"].includes(action)) {
@@ -64,6 +97,7 @@ Deno.serve(async (req) => {
       }
 
       case "change_role": {
+        if (callerRole.role !== "admin") throw new Error("Only admins can change roles");
         const { new_role } = params;
         const validRoles = ["super_distributor", "master_distributor", "distributor", "retailer"];
         if (!validRoles.includes(new_role)) throw new Error("Invalid role");
@@ -78,14 +112,13 @@ Deno.serve(async (req) => {
       }
 
       case "block": {
-        // Set profile status to blocked and disable auth user
         await adminClient
           .from("profiles")
           .update({ status: "blocked" })
           .eq("user_id", target_user_id);
 
         const { error } = await adminClient.auth.admin.updateUserById(target_user_id, {
-          ban_duration: "876000h", // ~100 years
+          ban_duration: "876000h",
         });
         if (error) throw new Error(error.message);
         result.message = "User blocked";
@@ -107,6 +140,7 @@ Deno.serve(async (req) => {
       }
 
       case "reset_password": {
+        if (callerRole.role !== "admin") throw new Error("Only admins can reset passwords");
         const { new_password } = params;
         if (!new_password || new_password.length < 6) throw new Error("Password must be at least 6 characters");
 
@@ -115,6 +149,33 @@ Deno.serve(async (req) => {
         });
         if (error) throw new Error(error.message);
         result.message = "Password reset successfully";
+        break;
+      }
+
+      case "toggle_service": {
+        const { service_key, is_enabled } = params;
+        if (!service_key) throw new Error("service_key required");
+
+        if (is_enabled) {
+          // Remove the override (enable the service)
+          await adminClient
+            .from("user_service_overrides")
+            .delete()
+            .eq("user_id", target_user_id)
+            .eq("service_key", service_key);
+        } else {
+          // Add an override (disable the service)
+          const { error } = await adminClient
+            .from("user_service_overrides")
+            .upsert({
+              user_id: target_user_id,
+              service_key,
+              is_enabled: false,
+              disabled_by: caller.id,
+            }, { onConflict: "user_id,service_key" });
+          if (error) throw new Error(error.message);
+        }
+        result.message = `Service ${service_key} ${is_enabled ? "enabled" : "disabled"} for user`;
         break;
       }
 

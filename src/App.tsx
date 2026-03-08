@@ -38,6 +38,7 @@ import DashboardPG from "./pages/DashboardPG";
 import DashboardPOS from "./pages/DashboardPOS";
 import DashboardSoundBox from "./pages/DashboardSoundBox";
 import DashboardReports from "./pages/DashboardReports";
+import DashboardServiceManagement from "./pages/DashboardServiceManagement";
 import ComingSoon from "./components/ComingSoon";
 import NotFound from "./pages/NotFound";
 
@@ -91,6 +92,7 @@ const App = () => (
               <Route path="commissions" element={<ProtectedRoute minRole="distributor"><DashboardCommissions /></ProtectedRoute>} />
               <Route path="kyc" element={<ProtectedRoute minRole="distributor"><DashboardKYC /></ProtectedRoute>} />
               <Route path="reports" element={<DashboardReports />} />
+              <Route path="service-management" element={<ProtectedRoute allowedRoles={["admin"]}><DashboardServiceManagement /></ProtectedRoute>} />
               <Route path="security" element={<ProtectedRoute allowedRoles={["admin"]}><DashboardSecurity /></ProtectedRoute>} />
               <Route path="settings" element={<ProtectedRoute allowedRoles={["admin"]}><DashboardSettings /></ProtectedRoute>} />
             </Route>

@@ -5,9 +5,11 @@ import {
   Shield, Zap, ChevronLeft, Fingerprint, Send, Receipt, CreditCard, BarChart3,
   FileText, Smartphone, Banknote, Building2, CreditCard as CreditCardIcon,
   Plane, Package, ShieldCheck, Landmark, Radio, Box, QrCode, FileSpreadsheet,
+  Settings2,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
@@ -19,6 +21,7 @@ interface NavItem {
   minRole?: AppRole;
   allowedRoles?: AppRole[];
   section?: string;
+  serviceKey?: string; // links to service_config
 }
 
 const ROLE_LEVEL: Record<AppRole, number> = {
@@ -29,33 +32,41 @@ const ROLE_LEVEL: Record<AppRole, number> = {
   retailer: 5,
 };
 
-const navItems: NavItem[] = [
+const ICON_MAP: Record<string, typeof LayoutDashboard> = {
+  aeps: Fingerprint,
+  bbps: Receipt,
+  dmt: Send,
+  recharge: Smartphone,
+  loan: Banknote,
+  credit_card: CreditCard,
+  cc_bill_pay: CreditCardIcon,
+  payout: ArrowLeftRight,
+  matm: Radio,
+  bank_account: Building2,
+  pan: FileText,
+  ppi_wallet: Wallet,
+  travel_booking: Plane,
+  travel_package: Package,
+  insurance: ShieldCheck,
+  pg: QrCode,
+  pos: Landmark,
+  sound_box: Box,
+};
+
+// Static nav items (non-service)
+const staticItems: NavItem[] = [
   { label: "Overview", icon: LayoutDashboard, path: "/dashboard", section: "Main" },
   { label: "Users", icon: Users, path: "/dashboard/users", minRole: "master_distributor", section: "Main" },
   { label: "Wallet & Funds", icon: Wallet, path: "/dashboard/wallet", section: "Main" },
   { label: "Fund Requests", icon: Banknote, path: "/dashboard/fund-requests", section: "Main" },
   { label: "Transactions", icon: ArrowLeftRight, path: "/dashboard/transactions", section: "Main" },
-  { label: "AEPS", icon: Fingerprint, path: "/dashboard/aeps", section: "Services" },
-  { label: "BBPS", icon: Receipt, path: "/dashboard/bbps", section: "Services" },
-  { label: "DMT", icon: Send, path: "/dashboard/dmt", section: "Services" },
-  { label: "Recharge", icon: Smartphone, path: "/dashboard/recharge", section: "Services" },
-  { label: "Loan", icon: Banknote, path: "/dashboard/loan", section: "Services" },
-  { label: "Credit Card", icon: CreditCard, path: "/dashboard/credit-card", section: "Services" },
-  { label: "CC Bill Pay", icon: CreditCardIcon, path: "/dashboard/cc-bill-pay", section: "Services" },
-  { label: "Payout", icon: ArrowLeftRight, path: "/dashboard/payout", section: "Services" },
-  { label: "MATM", icon: Radio, path: "/dashboard/matm", section: "Services" },
-  { label: "Bank Account", icon: Building2, path: "/dashboard/bank-account", section: "Services" },
-  { label: "PAN Apply", icon: FileText, path: "/dashboard/pan", section: "Services" },
-  { label: "PPI Wallet", icon: Wallet, path: "/dashboard/ppi-wallet", section: "Services" },
-  { label: "Travel Booking", icon: Plane, path: "/dashboard/travel-booking", section: "Services" },
-  { label: "Travel Package", icon: Package, path: "/dashboard/travel-package", section: "Services" },
-  { label: "Insurance", icon: ShieldCheck, path: "/dashboard/insurance", section: "Services" },
-  { label: "Payment Gateway", icon: QrCode, path: "/dashboard/pg", section: "Services" },
-  { label: "POS Machine", icon: Landmark, path: "/dashboard/pos", section: "Services" },
-  { label: "Sound Box", icon: Box, path: "/dashboard/sound-box", section: "Services" },
+];
+
+const managementItems: NavItem[] = [
   { label: "Commissions", icon: BarChart3, path: "/dashboard/commissions", minRole: "distributor", section: "Management" },
   { label: "KYC", icon: FileText, path: "/dashboard/kyc", minRole: "distributor", section: "Management" },
   { label: "Reports", icon: FileSpreadsheet, path: "/dashboard/reports", section: "Management" },
+  { label: "Service Mgmt", icon: Settings2, path: "/dashboard/service-management", allowedRoles: ["admin"], section: "Management" },
   { label: "Security", icon: Shield, path: "/dashboard/security", allowedRoles: ["admin"], section: "Management" },
   { label: "Settings", icon: Settings, path: "/dashboard/settings", allowedRoles: ["admin"], section: "Management" },
 ];
@@ -67,16 +78,58 @@ interface Props {
 export default function DashboardSidebar({ onNavigate }: Props) {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-  const { role } = useAuth();
+  const { user, role } = useAuth();
 
-  const visibleItems = navItems.filter((item) => {
+  // Dynamic service items from DB
+  const [serviceItems, setServiceItems] = useState<NavItem[]>([]);
+
+  useEffect(() => {
+    const fetchServices = async () => {
+      if (!user) return;
+
+      // Fetch globally enabled services
+      const { data: services } = await supabase
+        .from("service_config")
+        .select("service_key, service_label, route_path, is_enabled")
+        .eq("is_enabled", true)
+        .order("service_label");
+
+      // Fetch user-specific overrides (disabled services)
+      const { data: overrides } = await supabase
+        .from("user_service_overrides")
+        .select("service_key, is_enabled")
+        .eq("user_id", user.id);
+
+      const disabledKeys = new Set(
+        (overrides || []).filter((o: any) => !o.is_enabled).map((o: any) => o.service_key)
+      );
+
+      if (services) {
+        const items: NavItem[] = services
+          .filter((s: any) => !disabledKeys.has(s.service_key))
+          .map((s: any) => ({
+            label: s.service_label,
+            icon: ICON_MAP[s.service_key] || Box,
+            path: s.route_path,
+            section: "Services",
+            serviceKey: s.service_key,
+          }));
+        setServiceItems(items);
+      }
+    };
+    fetchServices();
+  }, [user]);
+
+  const allItems = [...staticItems, ...serviceItems, ...managementItems];
+
+  const visibleItems = allItems.filter((item) => {
     if (!role) return false;
     if (item.allowedRoles) return item.allowedRoles.includes(role);
     if (item.minRole) return ROLE_LEVEL[role] <= ROLE_LEVEL[item.minRole];
     return true;
   });
 
-  const sections: { name: string; items: typeof navItems }[] = [];
+  const sections: { name: string; items: typeof allItems }[] = [];
   let lastSection = "";
   for (const item of visibleItems) {
     if (item.section !== lastSection) {
