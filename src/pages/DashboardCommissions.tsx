@@ -2,13 +2,15 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  BarChart3, IndianRupee, TrendingUp, Users, Pencil, Save, X, RefreshCw, Download,
+  BarChart3, IndianRupee, TrendingUp, Users, Pencil, Save, X, RefreshCw, Download, Plus, Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { downloadCSV } from "@/lib/csv-export";
 import type { Database } from "@/integrations/supabase/types";
@@ -21,6 +23,10 @@ const ROLE_LABELS: Record<AppRole, string> = {
   master_distributor: "Master Dist.",
   distributor: "Distributor",
   retailer: "Retailer",
+};
+
+const ROLE_LEVEL: Record<string, number> = {
+  admin: 1, super_distributor: 2, master_distributor: 3, distributor: 4, retailer: 5,
 };
 
 const ALL_ROLES: AppRole[] = ["admin", "super_distributor", "master_distributor", "distributor", "retailer"];
@@ -46,10 +52,31 @@ interface CommissionLog {
   created_at: string;
 }
 
+interface UserOverride {
+  id: string;
+  set_by: string;
+  target_user_id: string;
+  service_key: string;
+  service_label: string;
+  commission_type: string;
+  commission_value: number;
+  charge_type: string;
+  charge_value: number;
+  is_active: boolean;
+  target_name?: string;
+}
+
+interface DownlineUser {
+  user_id: string;
+  full_name: string;
+  role?: AppRole;
+}
+
 export default function CommissionsPage() {
   const { user, role } = useAuth();
   const { toast } = useToast();
   const isAdmin = role === "admin";
+  const canManageDownline = role ? ROLE_LEVEL[role] < 5 : false; // everyone except retailer
 
   const [slabs, setSlabs] = useState<Slab[]>([]);
   const [logs, setLogs] = useState<CommissionLog[]>([]);
@@ -57,6 +84,29 @@ export default function CommissionsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [editType, setEditType] = useState("flat");
+
+  // User overrides state
+  const [overrides, setOverrides] = useState<UserOverride[]>([]);
+  const [downlineUsers, setDownlineUsers] = useState<DownlineUser[]>([]);
+  const [services, setServices] = useState<{ key: string; label: string }[]>([]);
+
+  // Add/Edit override dialog
+  const [overrideOpen, setOverrideOpen] = useState(false);
+  const [editOverride, setEditOverride] = useState<UserOverride | null>(null);
+  const [oTargetUser, setOTargetUser] = useState("");
+  const [oServiceKey, setOServiceKey] = useState("");
+  const [oCommType, setOCommType] = useState("flat");
+  const [oCommValue, setOCommValue] = useState("");
+  const [oChargeType, setOChargeType] = useState("flat");
+  const [oChargeValue, setOChargeValue] = useState("");
+  const [oSaving, setOSaving] = useState(false);
+
+  // Edit override inline
+  const [editingOverrideId, setEditingOverrideId] = useState<string | null>(null);
+  const [eoCommType, setEoCommType] = useState("flat");
+  const [eoCommValue, setEoCommValue] = useState("");
+  const [eoChargeType, setEoChargeType] = useState("flat");
+  const [eoChargeValue, setEoChargeValue] = useState("");
 
   const fetchSlabs = useCallback(async () => {
     const { data } = await supabase
@@ -78,16 +128,65 @@ export default function CommissionsPage() {
     if (data) setLogs(data as CommissionLog[]);
   }, [user]);
 
+  const fetchOverrides = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("user_commission_overrides")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (data) {
+      // Fetch target user names
+      const targetIds = [...new Set(data.map((o: any) => o.target_user_id))];
+      let nameMap: Record<string, string> = {};
+      if (targetIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, full_name")
+          .in("user_id", targetIds);
+        if (profiles) {
+          nameMap = Object.fromEntries(profiles.map((p: any) => [p.user_id, p.full_name]));
+        }
+      }
+      setOverrides(data.map((o: any) => ({ ...o, target_name: nameMap[o.target_user_id] || o.target_user_id })));
+    }
+  }, [user]);
+
+  const fetchDownlineUsers = useCallback(async () => {
+    if (!user || !canManageDownline) return;
+    const { data: profiles } = await supabase.from("profiles").select("user_id, full_name");
+    const { data: roles } = await supabase.from("user_roles").select("user_id, role");
+    if (profiles && roles) {
+      const roleMap = new Map(roles.map((r: any) => [r.user_id, r.role]));
+      const myLevel = role ? ROLE_LEVEL[role] : 99;
+      const dl = profiles
+        .filter((p: any) => p.user_id !== user.id)
+        .filter((p: any) => {
+          const uRole = roleMap.get(p.user_id);
+          return uRole && ROLE_LEVEL[uRole as AppRole] > myLevel;
+        })
+        .map((p: any) => ({ user_id: p.user_id, full_name: p.full_name, role: roleMap.get(p.user_id) as AppRole }));
+      setDownlineUsers(dl);
+    }
+  }, [user, role, canManageDownline]);
+
+  const fetchServices = useCallback(async () => {
+    const { data } = await supabase
+      .from("service_config")
+      .select("service_key, service_label")
+      .eq("is_enabled", true)
+      .order("service_label");
+    if (data) setServices(data.map((s: any) => ({ key: s.service_key, label: s.service_label })));
+  }, []);
+
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      await Promise.all([fetchSlabs(), fetchLogs()]);
+      await Promise.all([fetchSlabs(), fetchLogs(), fetchOverrides(), fetchDownlineUsers(), fetchServices()]);
       setLoading(false);
     };
     load();
-  }, [fetchSlabs, fetchLogs]);
+  }, [fetchSlabs, fetchLogs, fetchOverrides, fetchDownlineUsers, fetchServices]);
 
-  // Group slabs by service
   const serviceGroups = slabs.reduce<Record<string, { label: string; slabs: Record<string, Slab> }>>((acc, s) => {
     if (!acc[s.service_key]) acc[s.service_key] = { label: s.service_label, slabs: {} };
     acc[s.service_key].slabs[s.role] = s;
@@ -113,6 +212,68 @@ export default function CommissionsPage() {
     }
   };
 
+  const openAddOverride = () => {
+    setEditOverride(null);
+    setOTargetUser(""); setOServiceKey(""); setOCommType("flat"); setOCommValue(""); setOChargeType("flat"); setOChargeValue("");
+    setOverrideOpen(true);
+  };
+
+  const handleSaveOverride = async () => {
+    if (!oTargetUser || !oServiceKey || !user) {
+      toast({ title: "Select user and service", variant: "destructive" }); return;
+    }
+    const commVal = parseFloat(oCommValue) || 0;
+    const chargeVal = parseFloat(oChargeValue) || 0;
+    const svcLabel = services.find((s) => s.key === oServiceKey)?.label || oServiceKey;
+
+    setOSaving(true);
+    try {
+      const { error } = await supabase
+        .from("user_commission_overrides")
+        .upsert({
+          set_by: user.id,
+          target_user_id: oTargetUser,
+          service_key: oServiceKey,
+          service_label: svcLabel,
+          commission_type: oCommType,
+          commission_value: commVal,
+          charge_type: oChargeType,
+          charge_value: chargeVal,
+          is_active: true,
+        }, { onConflict: "target_user_id,service_key" });
+      if (error) throw error;
+      toast({ title: "Commission/Charge saved" });
+      setOverrideOpen(false);
+      fetchOverrides();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setOSaving(false);
+    }
+  };
+
+  const handleUpdateOverride = async (o: UserOverride) => {
+    const commVal = parseFloat(eoCommValue) || 0;
+    const chargeVal = parseFloat(eoChargeValue) || 0;
+    const { error } = await supabase
+      .from("user_commission_overrides")
+      .update({ commission_type: eoCommType, commission_value: commVal, charge_type: eoChargeType, charge_value: chargeVal })
+      .eq("id", o.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Updated" });
+      setEditingOverrideId(null);
+      fetchOverrides();
+    }
+  };
+
+  const handleDeleteOverride = async (id: string) => {
+    const { error } = await supabase.from("user_commission_overrides").delete().eq("id", id);
+    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+    else { toast({ title: "Removed" }); fetchOverrides(); }
+  };
+
   const totalEarned = logs.reduce((s, l) => s + Number(l.commission_amount), 0);
   const todayEarned = logs
     .filter((l) => new Date(l.created_at).toDateString() === new Date().toDateString())
@@ -126,11 +287,16 @@ export default function CommissionsPage() {
         <div>
           <h1 className="text-2xl font-heading font-bold text-foreground">Commission Management</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {isAdmin ? "Manage commission slabs across the hierarchy." : "View your commission earnings."}
+            {isAdmin ? "Manage global slabs and user-level commissions." : "Manage commissions & charges for your downline."}
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => { fetchSlabs(); fetchLogs(); }}>
+          {canManageDownline && (
+            <Button variant="hero" size="sm" onClick={openAddOverride}>
+              <Plus className="w-4 h-4 mr-1" /> Add Commission / Charge
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => { fetchSlabs(); fetchLogs(); fetchOverrides(); }}>
             <RefreshCw className="w-4 h-4 mr-1" /> Refresh
           </Button>
           <Button variant="ghost" size="sm" onClick={() => {
@@ -164,91 +330,180 @@ export default function CommissionsPage() {
         ))}
       </div>
 
-      {/* Commission Slabs Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base font-heading">Commission Slabs by Role</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p className="text-center py-8 text-muted-foreground">Loading...</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-3 px-3 text-xs font-medium text-muted-foreground uppercase">Service</th>
-                    {ALL_ROLES.map((r) => (
-                      <th key={r} className="text-left py-3 px-3 text-xs font-medium text-muted-foreground uppercase">{ROLE_LABELS[r]}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(serviceGroups).map(([key, group]) => (
-                    <tr key={key} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
-                      <td className="py-3 px-3 text-foreground font-medium">{group.label}</td>
-                      {ALL_ROLES.map((r) => {
-                        const slab = group.slabs[r];
-                        if (!slab) return <td key={r} className="py-3 px-3 text-muted-foreground">—</td>;
-                        const isEditing = editingId === slab.id;
-                        return (
-                          <td key={r} className="py-3 px-3">
-                            {isEditing ? (
+      {/* User Commission/Charge Overrides */}
+      {canManageDownline && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base font-heading">Downline Commissions & Charges</CardTitle>
+            <Button variant="outline" size="sm" onClick={openAddOverride}>
+              <Plus className="w-4 h-4 mr-1" /> Add New
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {overrides.length === 0 ? (
+              <p className="text-center py-8 text-muted-foreground">No custom commissions or charges set. Click "Add New" to configure for your downline users.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 px-3 text-xs font-medium text-muted-foreground uppercase">User</th>
+                      <th className="text-left py-3 px-3 text-xs font-medium text-muted-foreground uppercase">Service</th>
+                      <th className="text-left py-3 px-3 text-xs font-medium text-muted-foreground uppercase">Commission</th>
+                      <th className="text-left py-3 px-3 text-xs font-medium text-muted-foreground uppercase">Charge</th>
+                      <th className="text-right py-3 px-3 text-xs font-medium text-muted-foreground uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {overrides.map((o) => {
+                      const isEditingThis = editingOverrideId === o.id;
+                      return (
+                        <tr key={o.id} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
+                          <td className="py-3 px-3 font-medium text-foreground">{o.target_name}</td>
+                          <td className="py-3 px-3 text-muted-foreground capitalize">{o.service_label || o.service_key.replace(/_/g, " ")}</td>
+                          <td className="py-3 px-3">
+                            {isEditingThis ? (
                               <div className="flex items-center gap-1">
-                                <Select value={editType} onValueChange={setEditType}>
-                                  <SelectTrigger className="h-7 w-16 text-xs">
-                                    <SelectValue />
-                                  </SelectTrigger>
+                                <Select value={eoCommType} onValueChange={setEoCommType}>
+                                  <SelectTrigger className="h-7 w-14 text-xs"><SelectValue /></SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="flat">₹</SelectItem>
                                     <SelectItem value="percent">%</SelectItem>
                                   </SelectContent>
                                 </Select>
-                                <Input
-                                  className="h-7 w-16 text-xs"
-                                  type="number"
-                                  value={editValue}
-                                  onChange={(e) => setEditValue(e.target.value)}
-                                />
-                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleSave(slab)}>
-                                  <Save className="w-3 h-3 text-success" />
+                                <Input className="h-7 w-16 text-xs" type="number" value={eoCommValue} onChange={(e) => setEoCommValue(e.target.value)} />
+                              </div>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs font-mono">
+                                {o.commission_type === "percent" ? `${o.commission_value}%` : `₹${o.commission_value}`}
+                              </Badge>
+                            )}
+                          </td>
+                          <td className="py-3 px-3">
+                            {isEditingThis ? (
+                              <div className="flex items-center gap-1">
+                                <Select value={eoChargeType} onValueChange={setEoChargeType}>
+                                  <SelectTrigger className="h-7 w-14 text-xs"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="flat">₹</SelectItem>
+                                    <SelectItem value="percent">%</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Input className="h-7 w-16 text-xs" type="number" value={eoChargeValue} onChange={(e) => setEoChargeValue(e.target.value)} />
+                              </div>
+                            ) : (
+                              <Badge variant="outline" className="text-xs font-mono">
+                                {o.charge_type === "percent" ? `${o.charge_value}%` : `₹${o.charge_value}`}
+                              </Badge>
+                            )}
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            {isEditingThis ? (
+                              <div className="flex items-center justify-end gap-1">
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleUpdateOverride(o)}>
+                                  <Save className="w-3.5 h-3.5 text-success" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingId(null)}>
-                                  <X className="w-3 h-3 text-destructive" />
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingOverrideId(null)}>
+                                  <X className="w-3.5 h-3.5 text-destructive" />
                                 </Button>
                               </div>
                             ) : (
-                              <div className="flex items-center gap-1">
-                                <span className="text-foreground font-mono text-xs">
-                                  {slab.commission_type === "percent" ? `${slab.commission_value}%` : `₹${slab.commission_value}`}
-                                </span>
-                                {isAdmin && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-5 w-5 opacity-0 group-hover:opacity-100"
-                                    onClick={() => {
-                                      setEditingId(slab.id);
-                                      setEditValue(String(slab.commission_value));
-                                      setEditType(slab.commission_type);
-                                    }}
-                                  >
-                                    <Pencil className="w-3 h-3 text-muted-foreground" />
-                                  </Button>
-                                )}
+                              <div className="flex items-center justify-end gap-1">
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                                  setEditingOverrideId(o.id);
+                                  setEoCommType(o.commission_type); setEoCommValue(String(o.commission_value));
+                                  setEoChargeType(o.charge_type); setEoChargeValue(String(o.charge_value));
+                                }}>
+                                  <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteOverride(o.id)}>
+                                  <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                                </Button>
                               </div>
                             )}
                           </td>
-                        );
-                      })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Global Commission Slabs (admin view) */}
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base font-heading">Global Commission Slabs by Role</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <p className="text-center py-8 text-muted-foreground">Loading...</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 px-3 text-xs font-medium text-muted-foreground uppercase">Service</th>
+                      {ALL_ROLES.map((r) => (
+                        <th key={r} className="text-left py-3 px-3 text-xs font-medium text-muted-foreground uppercase">{ROLE_LABELS[r]}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  </thead>
+                  <tbody>
+                    {Object.entries(serviceGroups).map(([key, group]) => (
+                      <tr key={key} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
+                        <td className="py-3 px-3 text-foreground font-medium">{group.label}</td>
+                        {ALL_ROLES.map((r) => {
+                          const slab = group.slabs[r];
+                          if (!slab) return <td key={r} className="py-3 px-3 text-muted-foreground">—</td>;
+                          const isEditing = editingId === slab.id;
+                          return (
+                            <td key={r} className="py-3 px-3">
+                              {isEditing ? (
+                                <div className="flex items-center gap-1">
+                                  <Select value={editType} onValueChange={setEditType}>
+                                    <SelectTrigger className="h-7 w-16 text-xs"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="flat">₹</SelectItem>
+                                      <SelectItem value="percent">%</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <Input className="h-7 w-16 text-xs" type="number" value={editValue} onChange={(e) => setEditValue(e.target.value)} />
+                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleSave(slab)}>
+                                    <Save className="w-3 h-3 text-success" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingId(null)}>
+                                    <X className="w-3 h-3 text-destructive" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-foreground font-mono text-xs">
+                                    {slab.commission_type === "percent" ? `${slab.commission_value}%` : `₹${slab.commission_value}`}
+                                  </span>
+                                  <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => {
+                                    setEditingId(slab.id); setEditValue(String(slab.commission_value)); setEditType(slab.commission_type);
+                                  }}>
+                                    <Pencil className="w-3 h-3 text-muted-foreground" />
+                                  </Button>
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Recent Commission Logs */}
       <Card>
@@ -294,6 +549,81 @@ export default function CommissionsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Add Commission/Charge Dialog */}
+      <Dialog open={overrideOpen} onOpenChange={setOverrideOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Commission & Charge</DialogTitle>
+            <DialogDescription>Set commission and charge for a downline user on a specific service.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-2">
+              <Label>Select User *</Label>
+              <Select value={oTargetUser} onValueChange={setOTargetUser}>
+                <SelectTrigger><SelectValue placeholder="Choose downline user" /></SelectTrigger>
+                <SelectContent>
+                  {downlineUsers.map((u) => (
+                    <SelectItem key={u.user_id} value={u.user_id}>
+                      {u.full_name} {u.role ? `(${ROLE_LABELS[u.role]})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Service *</Label>
+              <Select value={oServiceKey} onValueChange={setOServiceKey}>
+                <SelectTrigger><SelectValue placeholder="Choose service" /></SelectTrigger>
+                <SelectContent>
+                  {services.map((s) => (
+                    <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Commission Type</Label>
+                <Select value={oCommType} onValueChange={setOCommType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="flat">Flat (₹)</SelectItem>
+                    <SelectItem value="percent">Percent (%)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Commission Value</Label>
+                <Input type="number" placeholder="0" value={oCommValue} onChange={(e) => setOCommValue(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Charge Type</Label>
+                <Select value={oChargeType} onValueChange={setOChargeType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="flat">Flat (₹)</SelectItem>
+                    <SelectItem value="percent">Percent (%)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Charge Value</Label>
+                <Input type="number" placeholder="0" value={oChargeValue} onChange={(e) => setOChargeValue(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setOverrideOpen(false)}>Cancel</Button>
+              <Button onClick={handleSaveOverride} disabled={oSaving}>{oSaving ? "Saving..." : "Save"}</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
