@@ -592,6 +592,43 @@ export default function DashboardWallet() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Admin Bank Deposit Dialog */}
+      <Dialog open={bankDepositOpen} onOpenChange={setBankDepositOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Fund via Bank Account</DialogTitle>
+            <DialogDescription>Record a bank deposit to add funds to your wallet.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="p-3 rounded-lg bg-muted/50 border text-sm">
+              Current balance: <span className="font-bold text-foreground">{formatINR(wallet?.balance ?? 0)}</span>
+            </div>
+            <div className="space-y-2">
+              <Label>Amount (₹)</Label>
+              <Input type="number" min={1} placeholder="Enter deposit amount" value={bankAmount} onChange={(e) => setBankAmount(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Bank Name</Label>
+              <Input placeholder="e.g. SBI, HDFC, ICICI" value={bankName} onChange={(e) => setBankName(e.target.value)} maxLength={100} />
+            </div>
+            <div className="space-y-2">
+              <Label>Transaction Reference / UTR <span className="text-destructive">*</span></Label>
+              <Input placeholder="e.g. UTR number or NEFT reference" value={bankRef} onChange={(e) => setBankRef(e.target.value)} maxLength={100} />
+            </div>
+            <div className="space-y-2">
+              <Label>Remarks (optional)</Label>
+              <Input placeholder="Any additional notes" value={bankDesc} onChange={(e) => setBankDesc(e.target.value)} maxLength={200} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setBankDepositOpen(false)}>Cancel</Button>
+              <Button onClick={handleBankDeposit} disabled={processing}>
+                <Building2 className="w-4 h-4 mr-1.5" /> {processing ? "Processing..." : "Record Deposit"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
