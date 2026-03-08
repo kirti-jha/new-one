@@ -251,6 +251,14 @@ export default function DashboardFundRequests() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={fetchData}><RefreshCw className="w-4 h-4 mr-1" /> Refresh</Button>
+          <Button variant="ghost" size="sm" onClick={() => {
+            if (!filtered.length) return;
+            downloadCSV(filtered.map((r) => ({
+              User: r.requester_name, Amount: r.amount, Status: r.status,
+              Mode: r.payment_mode, Reference: r.payment_reference, Bank: r.bank_name,
+              Date: new Date(r.created_at).toLocaleString("en-IN"),
+            })), "fund_requests");
+          }}><Download className="w-4 h-4 mr-1" /> Export</Button>
           <Button variant="hero" size="sm" onClick={() => setRequestOpen(true)}>
             <Plus className="w-4 h-4 mr-1" /> New Request
           </Button>
