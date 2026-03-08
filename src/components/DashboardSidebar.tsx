@@ -6,6 +6,7 @@ import {
   FileText, Smartphone, Banknote, Building2, CreditCard as CreditCardIcon,
   Plane, Package, ShieldCheck, Landmark, Radio, Box, QrCode, FileSpreadsheet,
   Settings2, ChevronDown, UserCog, User, KeyRound, Lock, Award, Download,
+  MessageCircle,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -232,6 +233,14 @@ export default function DashboardSidebar({ onNavigate }: Props) {
             )}
           </div>
         ))}
+        {/* Support link at bottom */}
+        <div className="mt-auto pt-2">
+          {!collapsed && (
+            <div className="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">Help</div>
+          )}
+          {collapsed && <div className="mx-3 my-2 border-t border-sidebar-border" />}
+          {renderNavLink({ label: "Contact Support", icon: MessageCircle, path: "/dashboard/support", section: "Help" })}
+        </div>
       </nav>
 
       <button onClick={() => setCollapsed(!collapsed)}

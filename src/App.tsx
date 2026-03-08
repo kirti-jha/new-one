@@ -48,6 +48,7 @@ import DashboardCertificate from "./pages/DashboardCertificate";
 import DashboardDeviceDriver from "./pages/DashboardDeviceDriver";
 import DashboardCommissionPlan from "./pages/DashboardCommissionPlan";
 import ImpersonatePage from "./pages/ImpersonatePage";
+import DashboardSupport from "./pages/DashboardSupport";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -112,6 +113,7 @@ const App = () => (
               <Route path="change-password" element={<DashboardChangePassword />} />
               <Route path="certificate" element={<DashboardCertificate />} />
               <Route path="device-driver" element={<DashboardDeviceDriver />} />
+              <Route path="support" element={<DashboardSupport />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
