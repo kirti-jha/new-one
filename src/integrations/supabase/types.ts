@@ -146,6 +146,39 @@ export type Database = {
         }
         Relationships: []
       }
+      e_wallet_credits: {
+        Row: {
+          amount: number
+          available_at: string
+          consumed: boolean
+          created_at: string
+          id: string
+          reference_id: string | null
+          source: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          available_at: string
+          consumed?: boolean
+          created_at?: string
+          id?: string
+          reference_id?: string | null
+          source?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          available_at?: string
+          consumed?: boolean
+          created_at?: string
+          id?: string
+          reference_id?: string | null
+          source?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       fund_requests: {
         Row: {
           amount: number
@@ -374,6 +407,7 @@ export type Database = {
         Row: {
           balance: number
           created_at: string
+          e_wallet_balance: number
           id: string
           updated_at: string
           user_id: string
@@ -381,6 +415,7 @@ export type Database = {
         Insert: {
           balance?: number
           created_at?: string
+          e_wallet_balance?: number
           id?: string
           updated_at?: string
           user_id: string
@@ -388,6 +423,7 @@ export type Database = {
         Update: {
           balance?: number
           created_at?: string
+          e_wallet_balance?: number
           id?: string
           updated_at?: string
           user_id?: string
