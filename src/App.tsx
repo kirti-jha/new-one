@@ -50,7 +50,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignupPage />} />
+            {/* Signup removed — admin creates users */}
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
             <Route
               path="/dashboard"
