@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Wallet, ArrowUpRight, ArrowDownRight, Plus, Clock,
-  CheckCircle2, Send, ArrowDownLeft, RefreshCw, CreditCard, Download, Lock,
+  CheckCircle2, Send, ArrowDownLeft, RefreshCw, CreditCard, Download, Lock, Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
