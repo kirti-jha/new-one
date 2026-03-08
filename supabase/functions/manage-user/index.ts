@@ -116,7 +116,16 @@ Deno.serve(async (req) => {
           .update({ role: new_role })
           .eq("user_id", target_user_id);
         if (error) throw new Error(error.message);
+        const ROLE_LABELS: Record<string, string> = { super_distributor: "Super Distributor", master_distributor: "Master Distributor", distributor: "Distributor", retailer: "Retailer" };
         result.message = `Role changed to ${new_role}`;
+
+        await adminClient.from("notifications").insert({
+          user_id: target_user_id,
+          title: "Role Changed",
+          message: `Your role has been changed to ${ROLE_LABELS[new_role] || new_role}.`,
+          type: "role_changed",
+          reference_type: "role",
+        });
         break;
       }
 
