@@ -90,6 +90,7 @@ const App = () => (
               {/* Management */}
               <Route path="commissions" element={<ProtectedRoute minRole="distributor"><DashboardCommissions /></ProtectedRoute>} />
               <Route path="kyc" element={<ProtectedRoute minRole="distributor"><DashboardKYC /></ProtectedRoute>} />
+              <Route path="reports" element={<DashboardReports />} />
               <Route path="security" element={<ProtectedRoute allowedRoles={["admin"]}><DashboardSecurity /></ProtectedRoute>} />
               <Route path="settings" element={<ProtectedRoute allowedRoles={["admin"]}><DashboardSettings /></ProtectedRoute>} />
             </Route>
