@@ -236,6 +236,31 @@ export default function DashboardWallet() {
   };
 
   const handleExportLedger = () => {
+
+  const handleBankDeposit = async () => {
+    const amt = parseFloat(bankAmount);
+    if (!amt || amt <= 0 || !bankRef.trim()) {
+      toast({ title: "Invalid input", description: "Enter a valid amount and bank reference.", variant: "destructive" });
+      return;
+    }
+    setProcessing(true);
+    try {
+      const res = await supabase.functions.invoke("wallet-transfer", {
+        body: { action: "admin_bank_topup", amount: amt, bank_reference: bankRef.trim(), bank_name: bankName.trim(), description: bankDesc.trim() },
+      });
+      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
+      toast({ title: "Bank Deposit Recorded", description: `₹${amt.toLocaleString("en-IN")} added to your wallet.` });
+      setBankDepositOpen(false);
+      setBankAmount(""); setBankRef(""); setBankName(""); setBankDesc("");
+      fetchWallet(); fetchTransactions();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleExportLedger = () => {
     if (!transactions.length) {
       toast({ title: "No data to export", variant: "destructive" });
       return;
