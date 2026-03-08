@@ -41,6 +41,12 @@ import DashboardReports from "./pages/DashboardReports";
 import DashboardServiceManagement from "./pages/DashboardServiceManagement";
 import DashboardStaffManagement from "./pages/DashboardStaffManagement";
 import ComingSoon from "./components/ComingSoon";
+import DashboardProfile from "./pages/DashboardProfile";
+import DashboardTpin from "./pages/DashboardTpin";
+import DashboardChangePassword from "./pages/DashboardChangePassword";
+import DashboardCertificate from "./pages/DashboardCertificate";
+import DashboardDeviceDriver from "./pages/DashboardDeviceDriver";
+import DashboardCommissionPlan from "./pages/DashboardCommissionPlan";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -97,6 +103,13 @@ const App = () => (
               <Route path="service-management" element={<ProtectedRoute allowedRoles={["admin"]}><DashboardServiceManagement /></ProtectedRoute>} />
               <Route path="security" element={<ProtectedRoute allowedRoles={["admin"]}><DashboardSecurity /></ProtectedRoute>} />
               <Route path="settings" element={<ProtectedRoute allowedRoles={["admin"]}><DashboardSettings /></ProtectedRoute>} />
+              {/* User Settings (non-admin) */}
+              <Route path="commission-plan" element={<DashboardCommissionPlan />} />
+              <Route path="profile" element={<DashboardProfile />} />
+              <Route path="tpin" element={<DashboardTpin />} />
+              <Route path="change-password" element={<DashboardChangePassword />} />
+              <Route path="certificate" element={<DashboardCertificate />} />
+              <Route path="device-driver" element={<DashboardDeviceDriver />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

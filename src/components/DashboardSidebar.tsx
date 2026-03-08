@@ -5,7 +5,7 @@ import {
   Shield, Zap, ChevronLeft, Fingerprint, Send, Receipt, CreditCard, BarChart3,
   FileText, Smartphone, Banknote, Building2, CreditCard as CreditCardIcon,
   Plane, Package, ShieldCheck, Landmark, Radio, Box, QrCode, FileSpreadsheet,
-  Settings2, ChevronDown, UserCog,
+  Settings2, ChevronDown, UserCog, User, KeyRound, Lock, Award, Download,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -56,6 +56,15 @@ const managementItems: NavItem[] = [
   { label: "Settings", icon: Settings, path: "/dashboard/settings", allowedRoles: ["admin"], section: "Management", permissionKey: "can_manage_settings" },
 ];
 
+const userSettingsItems: NavItem[] = [
+  { label: "Commission Plan", icon: BarChart3, path: "/dashboard/commission-plan", section: "Setting", allowedRoles: ["super_distributor", "master_distributor", "distributor", "retailer"] },
+  { label: "Profile", icon: User, path: "/dashboard/profile", section: "Setting", allowedRoles: ["super_distributor", "master_distributor", "distributor", "retailer"] },
+  { label: "TPIN", icon: KeyRound, path: "/dashboard/tpin", section: "Setting", allowedRoles: ["super_distributor", "master_distributor", "distributor", "retailer"] },
+  { label: "Change Password", icon: Lock, path: "/dashboard/change-password", section: "Setting", allowedRoles: ["super_distributor", "master_distributor", "distributor", "retailer"] },
+  { label: "Certificate Download", icon: Award, path: "/dashboard/certificate", section: "Setting", allowedRoles: ["super_distributor", "master_distributor", "distributor", "retailer"] },
+  { label: "Device Driver", icon: Download, path: "/dashboard/device-driver", section: "Setting", allowedRoles: ["super_distributor", "master_distributor", "distributor", "retailer"] },
+];
+
 interface Props {
   onNavigate?: () => void;
 }
@@ -102,7 +111,7 @@ export default function DashboardSidebar({ onNavigate }: Props) {
     if (serviceItems.some((s) => location.pathname === s.path)) setServicesOpen(true);
   }, [location.pathname, serviceItems]);
 
-  const nonServiceItems = [...staticItems, ...managementItems].filter((item) => {
+  const nonServiceItems = [...staticItems, ...managementItems, ...userSettingsItems].filter((item) => {
     if (!role) return false;
     // Master-only items
     if (item.masterOnly && !isMasterAdmin) return false;
