@@ -136,6 +136,17 @@ Deno.serve(async (req) => {
         })
         .eq("id", request_id);
 
+      // Notify requester
+      const { data: approverProfile } = await admin.from("profiles").select("full_name").eq("user_id", user.id).single();
+      await admin.from("notifications").insert({
+        user_id: fundReq.requester_id,
+        title: "Fund Request Approved",
+        message: `Your fund request of ₹${amount.toLocaleString("en-IN")} has been approved by ${approverProfile?.full_name || "Admin"}.`,
+        type: "fund_approved",
+        reference_id: request_id,
+        reference_type: "fund_request",
+      });
+
       return new Response(JSON.stringify({ success: true, message: "Fund request approved and credited" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
