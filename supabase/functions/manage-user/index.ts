@@ -162,6 +162,14 @@ Deno.serve(async (req) => {
         });
         if (error) throw new Error(error.message);
         result.message = "User unblocked";
+
+        await adminClient.from("notifications").insert({
+          user_id: target_user_id,
+          title: "Account Unblocked",
+          message: "Your account has been reactivated. You can now log in.",
+          type: "account_unblocked",
+          reference_type: "account",
+        });
         break;
       }
 
