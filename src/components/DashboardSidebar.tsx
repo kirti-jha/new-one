@@ -33,6 +33,7 @@ const navItems: NavItem[] = [
   { label: "Overview", icon: LayoutDashboard, path: "/dashboard", section: "Main" },
   { label: "Users", icon: Users, path: "/dashboard/users", minRole: "master_distributor", section: "Main" },
   { label: "Wallet & Funds", icon: Wallet, path: "/dashboard/wallet", section: "Main" },
+  { label: "Fund Requests", icon: Banknote, path: "/dashboard/fund-requests", section: "Main" },
   { label: "Transactions", icon: ArrowLeftRight, path: "/dashboard/transactions", section: "Main" },
   { label: "AEPS", icon: Fingerprint, path: "/dashboard/aeps", section: "Services" },
   { label: "BBPS", icon: Receipt, path: "/dashboard/bbps", section: "Services" },
