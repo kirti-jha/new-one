@@ -93,6 +93,15 @@ Deno.serve(async (req) => {
           .eq("user_id", target_user_id);
         if (error) throw new Error(error.message);
         result.message = "Profile updated";
+
+        // Notify user
+        await adminClient.from("notifications").insert({
+          user_id: target_user_id,
+          title: "Profile Updated",
+          message: "Your profile has been updated by an administrator.",
+          type: "kyc_update",
+          reference_type: "profile",
+        });
         break;
       }
 
