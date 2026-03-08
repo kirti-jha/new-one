@@ -113,6 +113,7 @@ const App = () => (
               <Route path="change-password" element={<DashboardChangePassword />} />
               <Route path="certificate" element={<DashboardCertificate />} />
               <Route path="device-driver" element={<DashboardDeviceDriver />} />
+              <Route path="support" element={<DashboardSupport />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
