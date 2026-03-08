@@ -8,7 +8,6 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
-import UnauthorizedPage from "./pages/UnauthorizedPage";
 import DashboardLayout from "./components/DashboardLayout";
 import DashboardOverview from "./pages/DashboardOverview";
 import DashboardUsers from "./pages/DashboardUsers";
