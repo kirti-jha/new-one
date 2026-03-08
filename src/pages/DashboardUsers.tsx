@@ -148,12 +148,11 @@ export default function DashboardUsers() {
 
       // Compute wallet totals by role
       const balanceMap = new Map((wallets || []).map((w: any) => [w.user_id, parseFloat(w.balance)]));
-      const totals: Record<string, number> = { total: 0, distributor: 0, retailer: 0 };
+      const totals: Record<string, number> = { total: 0, super_distributor: 0, master_distributor: 0, distributor: 0, retailer: 0 };
       merged.forEach((u) => {
         const bal = balanceMap.get(u.user_id) || 0;
         totals.total += bal;
-        if (u.role === "distributor") totals.distributor += bal;
-        if (u.role === "retailer") totals.retailer += bal;
+        if (u.role && u.role !== "admin") totals[u.role] = (totals[u.role] || 0) + bal;
       });
       setWalletTotals(totals);
     }
