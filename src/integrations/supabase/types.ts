@@ -343,6 +343,42 @@ export type Database = {
           },
         ]
       }
+      service_config: {
+        Row: {
+          created_at: string
+          icon_name: string | null
+          id: string
+          is_enabled: boolean
+          route_path: string
+          section: string
+          service_key: string
+          service_label: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          icon_name?: string | null
+          id?: string
+          is_enabled?: boolean
+          route_path: string
+          section?: string
+          service_key: string
+          service_label: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          icon_name?: string | null
+          id?: string
+          is_enabled?: boolean
+          route_path?: string
+          section?: string
+          service_key?: string
+          service_label?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -360,6 +396,41 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_service_overrides: {
+        Row: {
+          created_at: string
+          disabled_by: string
+          id: string
+          is_enabled: boolean
+          service_key: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          disabled_by: string
+          id?: string
+          is_enabled?: boolean
+          service_key: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          disabled_by?: string
+          id?: string
+          is_enabled?: boolean
+          service_key?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_service_overrides_service_key_fkey"
+            columns: ["service_key"]
+            isOneToOne: false
+            referencedRelation: "service_config"
+            referencedColumns: ["service_key"]
+          },
+        ]
       }
       wallet_transactions: {
         Row: {
