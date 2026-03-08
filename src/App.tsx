@@ -22,6 +22,20 @@ import DashboardCommissions from "./pages/DashboardCommissions";
 import DashboardKYC from "./pages/DashboardKYC";
 import DashboardSecurity from "./pages/DashboardSecurity";
 import DashboardSettings from "./pages/DashboardSettings";
+import DashboardRecharge from "./pages/DashboardRecharge";
+import DashboardLoan from "./pages/DashboardLoan";
+import DashboardCreditCard from "./pages/DashboardCreditCard";
+import DashboardCCBillPay from "./pages/DashboardCCBillPay";
+import DashboardPayout from "./pages/DashboardPayout";
+import DashboardMATM from "./pages/DashboardMATM";
+import DashboardBankAccount from "./pages/DashboardBankAccount";
+import DashboardPPIWallet from "./pages/DashboardPPIWallet";
+import DashboardTravelBooking from "./pages/DashboardTravelBooking";
+import DashboardTravelPackage from "./pages/DashboardTravelPackage";
+import DashboardInsurance from "./pages/DashboardInsurance";
+import DashboardPG from "./pages/DashboardPG";
+import DashboardPOS from "./pages/DashboardPOS";
+import DashboardSoundBox from "./pages/DashboardSoundBox";
 import ComingSoon from "./components/ComingSoon";
 import NotFound from "./pages/NotFound";
 
@@ -55,21 +69,21 @@ const App = () => (
               <Route path="aeps" element={<DashboardAEPS />} />
               <Route path="bbps" element={<DashboardBBPS />} />
               <Route path="dmt" element={<DashboardDMT />} />
-              <Route path="recharge" element={<ComingSoon title="Recharge" description="Mobile, DTH, and data card recharges for all major operators." />} />
-              <Route path="loan" element={<ComingSoon title="Loan" description="Personal and business loan applications with instant processing." />} />
-              <Route path="credit-card" element={<ComingSoon title="Credit Card" description="Credit card applications and lead generation services." />} />
-              <Route path="cc-bill-pay" element={<ComingSoon title="CC Bill Pay" description="Credit card bill payment for all major banks." />} />
-              <Route path="payout" element={<ComingSoon title="Payout" description="Instant payouts to bank accounts via IMPS/NEFT/RTGS." />} />
-              <Route path="matm" element={<ComingSoon title="MATM" description="Micro ATM — card-based cash withdrawal at merchant locations." />} />
-              <Route path="bank-account" element={<ComingSoon title="Bank Account" description="Instant bank account opening with partner banks." />} />
+              <Route path="recharge" element={<DashboardRecharge />} />
+              <Route path="loan" element={<DashboardLoan />} />
+              <Route path="credit-card" element={<DashboardCreditCard />} />
+              <Route path="cc-bill-pay" element={<DashboardCCBillPay />} />
+              <Route path="payout" element={<DashboardPayout />} />
+              <Route path="matm" element={<DashboardMATM />} />
+              <Route path="bank-account" element={<DashboardBankAccount />} />
               <Route path="pan" element={<DashboardPAN />} />
-              <Route path="ppi-wallet" element={<ComingSoon title="PPI Wallet" description="Prepaid Payment Instrument wallet services." />} />
-              <Route path="travel-booking" element={<ComingSoon title="Travel Booking" description="Flight, bus, and hotel booking services." />} />
-              <Route path="travel-package" element={<ComingSoon title="Travel Package" description="Curated travel packages and holiday deals." />} />
-              <Route path="insurance" element={<ComingSoon title="Insurance" description="Life, health, and general insurance premium collection." />} />
-              <Route path="pg" element={<ComingSoon title="Payment Gateway" description="Integrated payment gateway for online collections." />} />
-              <Route path="pos" element={<ComingSoon title="POS Machine" description="Point of Sale machine deployment and management." />} />
-              <Route path="sound-box" element={<ComingSoon title="Sound Box" description="Payment notification sound box for merchants." />} />
+              <Route path="ppi-wallet" element={<DashboardPPIWallet />} />
+              <Route path="travel-booking" element={<DashboardTravelBooking />} />
+              <Route path="travel-package" element={<DashboardTravelPackage />} />
+              <Route path="insurance" element={<DashboardInsurance />} />
+              <Route path="pg" element={<DashboardPG />} />
+              <Route path="pos" element={<DashboardPOS />} />
+              <Route path="sound-box" element={<DashboardSoundBox />} />
               {/* Management */}
               <Route path="commissions" element={<ProtectedRoute minRole="distributor"><DashboardCommissions /></ProtectedRoute>} />
               <Route path="kyc" element={<ProtectedRoute minRole="distributor"><DashboardKYC /></ProtectedRoute>} />
