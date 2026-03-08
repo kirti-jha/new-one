@@ -2,6 +2,8 @@ import {
   Wallet, IndianRupee, Activity, ArrowUpRight, ArrowDownRight,
   TrendingUp, Fingerprint, Send, Receipt, Smartphone, CheckCircle2, Clock, XCircle,
   Zap, CreditCard, FileText, Banknote, AlertTriangle, ShieldCheck,
+  Landmark, Shield, Globe, Package, Plane, Heart, QrCode, Wifi,
+  MonitorSmartphone, BadgeIndianRupee, HandCoins, Volume2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -51,13 +53,25 @@ const recentTxns = [
 const statusIcon = { success: <CheckCircle2 className="w-3 h-3" />, pending: <Clock className="w-3 h-3" />, failed: <XCircle className="w-3 h-3" /> };
 const statusVariant = { success: "default" as const, pending: "secondary" as const, failed: "destructive" as const };
 
-const quickActions = [
-  { label: "AEPS", icon: Fingerprint, path: "/dashboard/aeps", color: "text-primary" },
-  { label: "DMT", icon: Send, path: "/dashboard/dmt", color: "text-chart-2" },
-  { label: "BBPS", icon: Receipt, path: "/dashboard/bbps", color: "text-chart-3" },
-  { label: "Recharge", icon: Smartphone, path: "/dashboard/recharge", color: "text-chart-4" },
-  { label: "PAN Card", icon: FileText, path: "/dashboard/pan", color: "text-primary" },
-  { label: "Credit Card", icon: CreditCard, path: "/dashboard/credit-card", color: "text-chart-2" },
+const allServices = [
+  { label: "AEPS", icon: Fingerprint, path: "/dashboard/aeps", bg: "bg-primary/10", color: "text-primary" },
+  { label: "DMT", icon: Send, path: "/dashboard/dmt", bg: "bg-chart-2/10", color: "text-chart-2" },
+  { label: "BBPS", icon: Receipt, path: "/dashboard/bbps", bg: "bg-chart-3/10", color: "text-chart-3" },
+  { label: "Recharge", icon: Smartphone, path: "/dashboard/recharge", bg: "bg-chart-4/10", color: "text-chart-4" },
+  { label: "PAN Card", icon: FileText, path: "/dashboard/pan", bg: "bg-primary/10", color: "text-primary" },
+  { label: "Credit Card", icon: CreditCard, path: "/dashboard/credit-card", bg: "bg-chart-2/10", color: "text-chart-2" },
+  { label: "CC Bill Pay", icon: BadgeIndianRupee, path: "/dashboard/cc-bill-pay", bg: "bg-chart-3/10", color: "text-chart-3" },
+  { label: "Payout", icon: HandCoins, path: "/dashboard/payout", bg: "bg-chart-4/10", color: "text-chart-4" },
+  { label: "mATM", icon: MonitorSmartphone, path: "/dashboard/matm", bg: "bg-primary/10", color: "text-primary" },
+  { label: "POS", icon: QrCode, path: "/dashboard/pos", bg: "bg-chart-2/10", color: "text-chart-2" },
+  { label: "Insurance", icon: Heart, path: "/dashboard/insurance", bg: "bg-chart-3/10", color: "text-chart-3" },
+  { label: "Loan", icon: Landmark, path: "/dashboard/loan", bg: "bg-chart-4/10", color: "text-chart-4" },
+  { label: "PPI Wallet", icon: Wallet, path: "/dashboard/ppi-wallet", bg: "bg-primary/10", color: "text-primary" },
+  { label: "SoundBox", icon: Volume2, path: "/dashboard/sound-box", bg: "bg-chart-2/10", color: "text-chart-2" },
+  { label: "Travel", icon: Plane, path: "/dashboard/travel-booking", bg: "bg-chart-3/10", color: "text-chart-3" },
+  { label: "Travel Pkg", icon: Globe, path: "/dashboard/travel-package", bg: "bg-chart-4/10", color: "text-chart-4" },
+  { label: "PG", icon: Shield, path: "/dashboard/pg", bg: "bg-primary/10", color: "text-primary" },
+  { label: "Bank A/C", icon: Landmark, path: "/dashboard/bank-account", bg: "bg-chart-2/10", color: "text-chart-2" },
 ];
 
 const pendingTasks = [
@@ -100,22 +114,22 @@ export default function RetailerOverview({ name }: { name: string }) {
         ))}
       </div>
 
-      {/* Quick Actions */}
+      {/* All Services */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base font-heading flex items-center gap-2">
-            <Zap className="w-4 h-4 text-primary" /> Quick Actions
+            <Zap className="w-4 h-4 text-primary" /> Services
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-            {quickActions.map((action) => (
-              <Link key={action.label} to={action.path}>
-                <div className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <action.icon className={`w-5 h-5 ${action.color}`} />
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-9 gap-3">
+            {allServices.map((svc) => (
+              <Link key={svc.label} to={svc.path}>
+                <div className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer group">
+                  <div className={`w-11 h-11 rounded-xl ${svc.bg} flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                    <svc.icon className={`w-5 h-5 ${svc.color}`} />
                   </div>
-                  <span className="text-xs font-medium text-foreground">{action.label}</span>
+                  <span className="text-[11px] font-medium text-foreground text-center leading-tight">{svc.label}</span>
                 </div>
               </Link>
             ))}
