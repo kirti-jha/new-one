@@ -148,12 +148,11 @@ export default function DashboardUsers() {
 
       // Compute wallet totals by role
       const balanceMap = new Map((wallets || []).map((w: any) => [w.user_id, parseFloat(w.balance)]));
-      const totals: Record<string, number> = { total: 0, distributor: 0, retailer: 0 };
+      const totals: Record<string, number> = { total: 0, super_distributor: 0, master_distributor: 0, distributor: 0, retailer: 0 };
       merged.forEach((u) => {
         const bal = balanceMap.get(u.user_id) || 0;
         totals.total += bal;
-        if (u.role === "distributor") totals.distributor += bal;
-        if (u.role === "retailer") totals.retailer += bal;
+        if (u.role && u.role !== "admin") totals[u.role] = (totals[u.role] || 0) + bal;
       });
       setWalletTotals(totals);
     }
@@ -387,7 +386,7 @@ export default function DashboardUsers() {
   };
 
   const filtered = users.filter((u) => {
-    const q = search.toLowerCase();
+    const q = searchInput.toLowerCase();
     const matchesSearch = !q || u.full_name?.toLowerCase().includes(q) || u.phone?.toLowerCase().includes(q) ||
       u.business_name?.toLowerCase().includes(q) || u.role?.toLowerCase().includes(q);
     const matchesRole = filterRole === "all" || u.role === filterRole;
@@ -405,17 +404,25 @@ export default function DashboardUsers() {
   const formatINR = (v: number) => `₹${v.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
 
   const totalUsers = users.filter((u) => u.role !== "admin").length;
-  const distributorCount = users.filter((u) => u.role === "distributor" || u.role === "master_distributor" || u.role === "super_distributor").length;
+  const sdCount = users.filter((u) => u.role === "super_distributor").length;
+  const mdCount = users.filter((u) => u.role === "master_distributor").length;
+  const distributorCount = users.filter((u) => u.role === "distributor").length;
   const retailerCount = users.filter((u) => u.role === "retailer").length;
   const activeCount = users.filter((u) => u.status === "active" && u.role !== "admin").length;
   const deactivatedCount = users.filter((u) => u.status !== "active" && u.role !== "admin").length;
 
+  const handleCardClick = (roleFilter: string) => {
+    setFilterRole(filterRole === roleFilter ? "all" : roleFilter);
+  };
+
   const statsCards = [
-    { label: "Total Users", value: totalUsers, sub: formatINR(walletTotals.total || 0), icon: Users, color: "text-primary bg-primary/10" },
-    { label: "Distributors", value: distributorCount, sub: formatINR(walletTotals.distributor || 0), icon: UserPlus, color: "text-destructive bg-destructive/10" },
-    { label: "Retailers", value: retailerCount, sub: formatINR(walletTotals.retailer || 0), icon: Store, color: "text-chart-2 bg-chart-2/10" },
-    { label: "Active", value: activeCount, sub: null, icon: UserCheck, color: "text-success bg-success/10" },
-    { label: "Deactivated", value: deactivatedCount, sub: null, icon: UserX, color: "text-warning bg-warning/10" },
+    { label: "Total Users", value: totalUsers, sub: formatINR(walletTotals.total || 0), icon: Users, color: "text-primary bg-primary/10", filterKey: "all" },
+    { label: "Super Distributors", value: sdCount, sub: formatINR(walletTotals.super_distributor || 0), icon: ShieldCheck, color: "text-chart-1 bg-chart-1/10", filterKey: "super_distributor" },
+    { label: "Master Distributors", value: mdCount, sub: formatINR(walletTotals.master_distributor || 0), icon: ShieldAlert, color: "text-chart-3 bg-chart-3/10", filterKey: "master_distributor" },
+    { label: "Distributors", value: distributorCount, sub: formatINR(walletTotals.distributor || 0), icon: UserPlus, color: "text-destructive bg-destructive/10", filterKey: "distributor" },
+    { label: "Retailers", value: retailerCount, sub: formatINR(walletTotals.retailer || 0), icon: Store, color: "text-chart-2 bg-chart-2/10", filterKey: "retailer" },
+    { label: "Active", value: activeCount, sub: null, icon: UserCheck, color: "text-success bg-success/10", filterKey: "_active" },
+    { label: "Deactivated", value: deactivatedCount, sub: null, icon: UserX, color: "text-warning bg-warning/10", filterKey: "_deactivated" },
   ];
 
   const handleSearch = () => {
@@ -466,17 +473,34 @@ export default function DashboardUsers() {
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {statsCards.map((stat) => (
-          <div key={stat.label} className="rounded-xl bg-gradient-card border border-border p-4 text-center">
-            <div className={`w-10 h-10 rounded-full ${stat.color} flex items-center justify-center mx-auto mb-2`}>
-              <stat.icon className="w-5 h-5" />
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+        {statsCards.map((stat) => {
+          const isActive = (stat.filterKey === "_active" && filterStatus === "active") ||
+            (stat.filterKey === "_deactivated" && filterStatus === "blocked") ||
+            (stat.filterKey !== "_active" && stat.filterKey !== "_deactivated" && filterRole === stat.filterKey && stat.filterKey !== "all");
+          return (
+            <div
+              key={stat.label}
+              onClick={() => {
+                if (stat.filterKey === "_active") {
+                  setFilterStatus(filterStatus === "active" ? "all" : "active");
+                } else if (stat.filterKey === "_deactivated") {
+                  setFilterStatus(filterStatus === "blocked" ? "all" : "blocked");
+                } else {
+                  handleCardClick(stat.filterKey);
+                }
+              }}
+              className={`rounded-xl bg-gradient-card border p-4 text-center cursor-pointer transition-all hover:shadow-md ${isActive ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+            >
+              <div className={`w-9 h-9 rounded-full ${stat.color} flex items-center justify-center mx-auto mb-2`}>
+                <stat.icon className="w-4 h-4" />
+              </div>
+              <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground leading-tight">{stat.label}</p>
+              <p className="text-xl font-heading font-bold text-foreground mt-1">{loading ? "..." : stat.value}</p>
+              {stat.sub && <p className="text-[10px] text-muted-foreground mt-0.5">{loading ? "..." : stat.sub}</p>}
             </div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{stat.label}</p>
-            <p className="text-2xl font-heading font-bold text-foreground mt-1">{loading ? "..." : stat.value}</p>
-            {stat.sub && <p className="text-xs text-muted-foreground mt-0.5">{loading ? "..." : stat.sub}</p>}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Search & Filter Bar */}
