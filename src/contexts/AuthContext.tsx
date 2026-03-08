@@ -14,7 +14,28 @@ interface Profile {
   kyc_status: string;
   status: string;
   parent_id: string | null;
+  is_master_admin: boolean;
 }
+
+export interface StaffPermissions {
+  can_manage_users: boolean;
+  can_manage_finances: boolean;
+  can_manage_commissions: boolean;
+  can_manage_services: boolean;
+  can_manage_settings: boolean;
+  can_manage_security: boolean;
+  can_view_reports: boolean;
+}
+
+const DEFAULT_PERMISSIONS: StaffPermissions = {
+  can_manage_users: true,
+  can_manage_finances: true,
+  can_manage_commissions: true,
+  can_manage_services: true,
+  can_manage_settings: true,
+  can_manage_security: true,
+  can_view_reports: true,
+};
 
 interface AuthContextType {
   session: Session | null;
@@ -22,6 +43,8 @@ interface AuthContextType {
   profile: Profile | null;
   role: AppRole | null;
   loading: boolean;
+  isMasterAdmin: boolean;
+  permissions: StaffPermissions;
   signOut: () => Promise<void>;
 }
 
@@ -31,6 +54,8 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   role: null,
   loading: true,
+  isMasterAdmin: false,
+  permissions: DEFAULT_PERMISSIONS,
   signOut: async () => {},
 });
 
@@ -42,6 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isMasterAdmin, setIsMasterAdmin] = useState(false);
+  const [permissions, setPermissions] = useState<StaffPermissions>(DEFAULT_PERMISSIONS);
 
   const fetchUserData = async (userId: string) => {
     try {
@@ -49,8 +76,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         supabase.from("profiles").select("*").eq("user_id", userId).single(),
         supabase.from("user_roles").select("role").eq("user_id", userId).single(),
       ]);
-      if (profileRes.data) setProfile(profileRes.data);
-      if (roleRes.data) setRole(roleRes.data.role);
+      if (profileRes.data) {
+        setProfile(profileRes.data as Profile);
+        const master = profileRes.data.is_master_admin === true;
+        setIsMasterAdmin(master);
+      }
+      if (roleRes.data) {
+        setRole(roleRes.data.role);
+
+        // Fetch staff permissions for admin users
+        if (roleRes.data.role === "admin") {
+          if (profileRes.data?.is_master_admin) {
+            setPermissions(DEFAULT_PERMISSIONS); // master admin has all
+          } else {
+            const { data: perms } = await supabase
+              .from("staff_permissions")
+              .select("*")
+              .eq("user_id", userId)
+              .single();
+            if (perms) {
+              setPermissions({
+                can_manage_users: perms.can_manage_users,
+                can_manage_finances: perms.can_manage_finances,
+                can_manage_commissions: perms.can_manage_commissions,
+                can_manage_services: perms.can_manage_services,
+                can_manage_settings: perms.can_manage_settings,
+                can_manage_security: perms.can_manage_security,
+                can_view_reports: perms.can_view_reports,
+              });
+            } else {
+              // No permissions row = full access (legacy admins)
+              setPermissions(DEFAULT_PERMISSIONS);
+            }
+          }
+        }
+      }
     } catch (err) {
       console.error("Error fetching user data:", err);
     }
@@ -62,11 +122,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
-          // Defer data fetch to avoid blocking auth state
           setTimeout(() => fetchUserData(session.user.id), 0);
         } else {
           setProfile(null);
           setRole(null);
+          setIsMasterAdmin(false);
+          setPermissions(DEFAULT_PERMISSIONS);
         }
         setLoading(false);
       }
@@ -88,10 +149,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setProfile(null);
     setRole(null);
+    setIsMasterAdmin(false);
+    setPermissions(DEFAULT_PERMISSIONS);
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, profile, role, loading, signOut }}>
+    <AuthContext.Provider value={{ session, user, profile, role, loading, isMasterAdmin, permissions, signOut }}>
       {children}
     </AuthContext.Provider>
   );
