@@ -302,6 +302,7 @@ export default function DashboardUsers() {
   };
 
   const handleImpersonate = async (u: UserRow) => {
+  const handleImpersonate = async (u: UserRow) => {
     setImpersonating(true);
     try {
       const res = await supabase.functions.invoke("impersonate-user", {
@@ -312,15 +313,14 @@ export default function DashboardUsers() {
       const { access_token, refresh_token } = res.data;
       if (!access_token || !refresh_token) throw new Error("Failed to get session tokens");
 
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      if (currentSession) {
-        localStorage.setItem("impersonation_return_token", currentSession.access_token);
-        localStorage.setItem("impersonation_return_refresh", currentSession.refresh_token!);
-      }
-
-      await supabase.auth.setSession({ access_token, refresh_token });
-      toast({ title: `Logged in as ${u.full_name}`, description: "You are now viewing as this user." });
-      window.location.href = "/dashboard";
+      // Open impersonated session in a NEW tab, keeping admin session intact
+      const params = new URLSearchParams({
+        access_token,
+        refresh_token,
+        name: u.full_name || "User",
+      });
+      window.open(`${window.location.origin}/impersonate?${params.toString()}`, "_blank");
+      toast({ title: `Opened ${u.full_name}'s session`, description: "A new tab has been opened with the impersonated session." });
     } catch (err: any) {
       toast({ title: "Impersonation failed", description: err.message, variant: "destructive" });
     } finally {
