@@ -1,13 +1,16 @@
 import {
   Wallet, IndianRupee, Activity, ArrowUpRight, ArrowDownRight,
   TrendingUp, Fingerprint, Send, Receipt, Smartphone, CheckCircle2, Clock, XCircle,
+  Zap, CreditCard, FileText, Banknote, AlertTriangle, ShieldCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
-  BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
+import { Link } from "react-router-dom";
 
 const stats = [
   { title: "Wallet Balance", value: "₹45,200", change: "-₹8,500", positive: false, icon: Wallet },
@@ -17,10 +20,14 @@ const stats = [
 ];
 
 const earningsData = [
-  { date: "Mar 1", earned: 980 }, { date: "Mar 2", earned: 1150 },
-  { date: "Mar 3", earned: 870 }, { date: "Mar 4", earned: 1340 },
-  { date: "Mar 5", earned: 1520 }, { date: "Mar 6", earned: 1080 },
-  { date: "Mar 7", earned: 1680 }, { date: "Mar 8", earned: 1240 },
+  { date: "Mar 1", earned: 980, volume: 42000 },
+  { date: "Mar 2", earned: 1150, volume: 51000 },
+  { date: "Mar 3", earned: 870, volume: 38000 },
+  { date: "Mar 4", earned: 1340, volume: 62000 },
+  { date: "Mar 5", earned: 1520, volume: 71000 },
+  { date: "Mar 6", earned: 1080, volume: 48000 },
+  { date: "Mar 7", earned: 1680, volume: 78000 },
+  { date: "Mar 8", earned: 1240, volume: 56000 },
 ];
 
 const serviceSplit = [
@@ -44,14 +51,37 @@ const recentTxns = [
 const statusIcon = { success: <CheckCircle2 className="w-3 h-3" />, pending: <Clock className="w-3 h-3" />, failed: <XCircle className="w-3 h-3" /> };
 const statusVariant = { success: "default" as const, pending: "secondary" as const, failed: "destructive" as const };
 
+const quickActions = [
+  { label: "AEPS", icon: Fingerprint, path: "/dashboard/aeps", color: "text-primary" },
+  { label: "DMT", icon: Send, path: "/dashboard/dmt", color: "text-chart-2" },
+  { label: "BBPS", icon: Receipt, path: "/dashboard/bbps", color: "text-chart-3" },
+  { label: "Recharge", icon: Smartphone, path: "/dashboard/recharge", color: "text-chart-4" },
+  { label: "PAN Card", icon: FileText, path: "/dashboard/pan", color: "text-primary" },
+  { label: "Credit Card", icon: CreditCard, path: "/dashboard/credit-card", color: "text-chart-2" },
+];
+
+const pendingTasks = [
+  { msg: "KYC verification pending — upload Aadhaar", severity: "warning", time: "Action needed" },
+  { msg: "Fund request ₹10,000 — Awaiting approval", severity: "info", time: "Submitted 2hr ago" },
+  { msg: "Low wallet balance — Add funds to continue", severity: "warning", time: "Balance < ₹5,000" },
+];
+
+const walletSummary = [
+  { label: "Main Wallet", value: "₹45,200", icon: Wallet },
+  { label: "E-Wallet", value: "₹2,350", icon: Zap },
+  { label: "Today's Credit", value: "₹8,500", icon: ArrowUpRight },
+  { label: "Today's Debit", value: "₹12,300", icon: ArrowDownRight },
+];
+
 export default function RetailerOverview({ name }: { name: string }) {
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-heading font-bold text-foreground">Retailer Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-1">Welcome back, {name}. Your daily performance summary.</p>
+        <p className="text-sm text-muted-foreground mt-1">Welcome back, {name}. Here's your daily performance summary.</p>
       </div>
 
+      {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {stats.map((card) => (
           <div key={card.title} className="p-4 sm:p-5 rounded-xl bg-gradient-card border border-border hover:border-primary/30 transition-all">
@@ -70,35 +100,98 @@ export default function RetailerOverview({ name }: { name: string }) {
         ))}
       </div>
 
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-heading flex items-center gap-2">
+            <Zap className="w-4 h-4 text-primary" /> Quick Actions
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+            {quickActions.map((action) => (
+              <Link key={action.label} to={action.path}>
+                <div className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <action.icon className={`w-5 h-5 ${action.color}`} />
+                  </div>
+                  <span className="text-xs font-medium text-foreground">{action.label}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Wallet Summary + Earnings Chart */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-heading flex items-center gap-2">
-              <IndianRupee className="w-4 h-4 text-primary" /> Daily Earnings (Last 8 Days)
+              <TrendingUp className="w-4 h-4 text-primary" /> Earnings & Volume (Last 8 Days)
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-[260px] sm:h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={earningsData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+                <AreaChart data={earningsData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="retEarnGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                   <XAxis dataKey="date" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                  <YAxis tickFormatter={(v) => `₹${v}`} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} formatter={(v: number) => [`₹${v.toLocaleString("en-IN")}`, "Earnings"]} />
-                  <Bar dataKey="earned" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                </BarChart>
+                  <YAxis tickFormatter={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v}`} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} formatter={(v: number) => [`₹${v.toLocaleString("en-IN")}`]} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Area type="monotone" dataKey="volume" name="Volume" stroke="hsl(var(--chart-2))" fill="none" strokeWidth={2} strokeDasharray="5 5" />
+                  <Area type="monotone" dataKey="earned" name="Earnings" stroke="hsl(var(--primary))" fill="url(#retEarnGrad)" strokeWidth={2} />
+                </AreaChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base font-heading">Service Usage</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-heading flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-primary" /> Wallet Summary
+            </CardTitle>
+          </CardHeader>
           <CardContent>
-            <div className="h-[180px]">
+            <div className="space-y-3">
+              {walletSummary.map((w) => (
+                <div key={w.label} className="flex items-center gap-3 p-3 rounded-lg border border-border">
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <w.icon className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground">{w.label}</p>
+                    <p className="text-sm font-heading font-bold text-foreground">{w.value}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Link to="/dashboard/wallet">
+              <Button variant="outline" size="sm" className="w-full mt-3">
+                <Banknote className="w-4 h-4 mr-2" /> Add Funds
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Service Usage + Pending Tasks */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base font-heading">Service Usage Breakdown</CardTitle></CardHeader>
+          <CardContent>
+            <div className="h-[200px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={serviceSplit} cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={3} dataKey="value">
+                  <Pie data={serviceSplit} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value">
                     {serviceSplit.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
                   </Pie>
                   <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} formatter={(v: number) => [`${v}%`]} />
@@ -109,10 +202,44 @@ export default function RetailerOverview({ name }: { name: string }) {
               {serviceSplit.map((s, i) => (
                 <div key={s.name} className="flex items-center gap-2 text-xs">
                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[i] }} />
+                  <s.icon className="w-3 h-3 text-muted-foreground" />
                   <span className="text-muted-foreground">{s.name}</span>
                   <span className="ml-auto font-medium text-foreground">{s.value}%</span>
                 </div>
               ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-heading flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-primary" /> Pending Tasks & Alerts
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {pendingTasks.map((a, i) => (
+                <div key={i} className="flex items-start gap-3 p-3 rounded-lg border border-border">
+                  <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${a.severity === "warning" ? "bg-warning" : "bg-primary"}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-foreground">{a.msg}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{a.time}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 mt-4">
+              <Link to="/dashboard/kyc" className="flex-1">
+                <Button variant="outline" size="sm" className="w-full">
+                  <ShieldCheck className="w-4 h-4 mr-1" /> Complete KYC
+                </Button>
+              </Link>
+              <Link to="/dashboard/fund-requests" className="flex-1">
+                <Button variant="outline" size="sm" className="w-full">
+                  <Banknote className="w-4 h-4 mr-1" /> Fund Requests
+                </Button>
+              </Link>
             </div>
           </CardContent>
         </Card>
@@ -121,9 +248,14 @@ export default function RetailerOverview({ name }: { name: string }) {
       {/* Recent Transactions */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base font-heading flex items-center gap-2">
-            <Clock className="w-4 h-4 text-primary" /> Recent Transactions
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-heading flex items-center gap-2">
+              <Clock className="w-4 h-4 text-primary" /> Recent Transactions
+            </CardTitle>
+            <Link to="/dashboard/transactions">
+              <Button variant="ghost" size="sm" className="text-xs text-primary">View All →</Button>
+            </Link>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
