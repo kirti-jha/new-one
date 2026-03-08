@@ -41,6 +41,12 @@ import DashboardReports from "./pages/DashboardReports";
 import DashboardServiceManagement from "./pages/DashboardServiceManagement";
 import DashboardStaffManagement from "./pages/DashboardStaffManagement";
 import ComingSoon from "./components/ComingSoon";
+import DashboardProfile from "./pages/DashboardProfile";
+import DashboardTpin from "./pages/DashboardTpin";
+import DashboardChangePassword from "./pages/DashboardChangePassword";
+import DashboardCertificate from "./pages/DashboardCertificate";
+import DashboardDeviceDriver from "./pages/DashboardDeviceDriver";
+import DashboardCommissionPlan from "./pages/DashboardCommissionPlan";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
