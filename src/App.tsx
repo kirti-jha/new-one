@@ -37,6 +37,7 @@ import DashboardInsurance from "./pages/DashboardInsurance";
 import DashboardPG from "./pages/DashboardPG";
 import DashboardPOS from "./pages/DashboardPOS";
 import DashboardSoundBox from "./pages/DashboardSoundBox";
+import DashboardReports from "./pages/DashboardReports";
 import ComingSoon from "./components/ComingSoon";
 import NotFound from "./pages/NotFound";
 
