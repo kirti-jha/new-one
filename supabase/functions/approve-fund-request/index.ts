@@ -163,6 +163,16 @@ Deno.serve(async (req) => {
         })
         .eq("id", request_id);
 
+      // Notify requester
+      await admin.from("notifications").insert({
+        user_id: fundReq.requester_id,
+        title: "Fund Request Rejected",
+        message: `Your fund request of ₹${Number(fundReq.amount).toLocaleString("en-IN")} has been rejected. Reason: ${rejection_reason || "Rejected by reviewer"}`,
+        type: "fund_rejected",
+        reference_id: request_id,
+        reference_type: "fund_request",
+      });
+
       return new Response(JSON.stringify({ success: true, message: "Fund request rejected" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
