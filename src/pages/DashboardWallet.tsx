@@ -235,8 +235,6 @@ export default function DashboardWallet() {
     }
   };
 
-  const handleExportLedger = () => {
-
   const handleBankDeposit = async () => {
     const amt = parseFloat(bankAmount);
     if (!amt || amt <= 0 || !bankRef.trim()) {
