@@ -403,6 +403,51 @@ export type Database = {
         }
         Relationships: []
       }
+      user_commission_overrides: {
+        Row: {
+          charge_type: string
+          charge_value: number
+          commission_type: string
+          commission_value: number
+          created_at: string
+          id: string
+          is_active: boolean
+          service_key: string
+          service_label: string
+          set_by: string
+          target_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          charge_type?: string
+          charge_value?: number
+          commission_type?: string
+          commission_value?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          service_key: string
+          service_label?: string
+          set_by: string
+          target_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          charge_type?: string
+          charge_value?: number
+          commission_type?: string
+          commission_value?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          service_key?: string
+          service_label?: string
+          set_by?: string
+          target_user_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
