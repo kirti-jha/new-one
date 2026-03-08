@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  BarChart3, IndianRupee, TrendingUp, Users, Pencil, Save, X, RefreshCw,
+  BarChart3, IndianRupee, TrendingUp, Users, Pencil, Save, X, RefreshCw, Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
