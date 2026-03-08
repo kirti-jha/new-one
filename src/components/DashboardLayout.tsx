@@ -54,10 +54,7 @@ export default function DashboardLayout() {
 
           {/* Right: bell + profile + logout */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive" />
-            </Button>
+            <NotificationBell />
             <div className="flex items-center gap-2 pl-2 sm:pl-3 border-l border-border">
               <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center shrink-0">
                 <User className="w-4 h-4 text-primary-foreground" />
