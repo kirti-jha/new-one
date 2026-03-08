@@ -53,13 +53,25 @@ const recentTxns = [
 const statusIcon = { success: <CheckCircle2 className="w-3 h-3" />, pending: <Clock className="w-3 h-3" />, failed: <XCircle className="w-3 h-3" /> };
 const statusVariant = { success: "default" as const, pending: "secondary" as const, failed: "destructive" as const };
 
-const quickActions = [
-  { label: "AEPS", icon: Fingerprint, path: "/dashboard/aeps", color: "text-primary" },
-  { label: "DMT", icon: Send, path: "/dashboard/dmt", color: "text-chart-2" },
-  { label: "BBPS", icon: Receipt, path: "/dashboard/bbps", color: "text-chart-3" },
-  { label: "Recharge", icon: Smartphone, path: "/dashboard/recharge", color: "text-chart-4" },
-  { label: "PAN Card", icon: FileText, path: "/dashboard/pan", color: "text-primary" },
-  { label: "Credit Card", icon: CreditCard, path: "/dashboard/credit-card", color: "text-chart-2" },
+const allServices = [
+  { label: "AEPS", icon: Fingerprint, path: "/dashboard/aeps", bg: "bg-primary/10", color: "text-primary" },
+  { label: "DMT", icon: Send, path: "/dashboard/dmt", bg: "bg-chart-2/10", color: "text-chart-2" },
+  { label: "BBPS", icon: Receipt, path: "/dashboard/bbps", bg: "bg-chart-3/10", color: "text-chart-3" },
+  { label: "Recharge", icon: Smartphone, path: "/dashboard/recharge", bg: "bg-chart-4/10", color: "text-chart-4" },
+  { label: "PAN Card", icon: FileText, path: "/dashboard/pan", bg: "bg-primary/10", color: "text-primary" },
+  { label: "Credit Card", icon: CreditCard, path: "/dashboard/credit-card", bg: "bg-chart-2/10", color: "text-chart-2" },
+  { label: "CC Bill Pay", icon: BadgeIndianRupee, path: "/dashboard/cc-bill-pay", bg: "bg-chart-3/10", color: "text-chart-3" },
+  { label: "Payout", icon: HandCoins, path: "/dashboard/payout", bg: "bg-chart-4/10", color: "text-chart-4" },
+  { label: "mATM", icon: MonitorSmartphone, path: "/dashboard/matm", bg: "bg-primary/10", color: "text-primary" },
+  { label: "POS", icon: QrCode, path: "/dashboard/pos", bg: "bg-chart-2/10", color: "text-chart-2" },
+  { label: "Insurance", icon: Heart, path: "/dashboard/insurance", bg: "bg-chart-3/10", color: "text-chart-3" },
+  { label: "Loan", icon: Landmark, path: "/dashboard/loan", bg: "bg-chart-4/10", color: "text-chart-4" },
+  { label: "PPI Wallet", icon: Wallet, path: "/dashboard/ppi-wallet", bg: "bg-primary/10", color: "text-primary" },
+  { label: "SoundBox", icon: Volume2, path: "/dashboard/sound-box", bg: "bg-chart-2/10", color: "text-chart-2" },
+  { label: "Travel", icon: Plane, path: "/dashboard/travel-booking", bg: "bg-chart-3/10", color: "text-chart-3" },
+  { label: "Travel Pkg", icon: Globe, path: "/dashboard/travel-package", bg: "bg-chart-4/10", color: "text-chart-4" },
+  { label: "PG", icon: Shield, path: "/dashboard/pg", bg: "bg-primary/10", color: "text-primary" },
+  { label: "Bank A/C", icon: Landmark, path: "/dashboard/bank-account", bg: "bg-chart-2/10", color: "text-chart-2" },
 ];
 
 const pendingTasks = [
