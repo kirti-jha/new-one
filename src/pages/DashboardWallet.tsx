@@ -73,6 +73,7 @@ export default function DashboardWallet() {
   const [topUpOpen, setTopUpOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [pgOpen, setPgOpen] = useState(false);
+  const [bankDepositOpen, setBankDepositOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
 
   // Top-up form (admin only)
