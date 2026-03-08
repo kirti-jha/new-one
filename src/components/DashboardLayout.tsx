@@ -1,14 +1,24 @@
 import { Outlet } from "react-router-dom";
 import DashboardSidebar from "@/components/DashboardSidebar";
-import { Bell, Search, User } from "lucide-react";
+import { Bell, Search, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: "Super Admin",
+  super_distributor: "Super Distributor",
+  master_distributor: "Master Distributor",
+  distributor: "Distributor",
+  retailer: "Retailer",
+};
 
 export default function DashboardLayout() {
+  const { profile, role, signOut } = useAuth();
+
   return (
     <div className="flex min-h-screen bg-background">
       <DashboardSidebar />
       <div className="flex-1 flex flex-col">
-        {/* Top bar */}
         <header className="h-16 border-b border-border flex items-center justify-between px-6 shrink-0 bg-card/50">
           <div className="flex items-center gap-3 flex-1 max-w-md">
             <Search className="w-4 h-4 text-muted-foreground" />
@@ -28,13 +38,15 @@ export default function DashboardLayout() {
                 <User className="w-4 h-4 text-primary-foreground" />
               </div>
               <div className="hidden sm:block">
-                <div className="text-sm font-medium text-foreground">Admin</div>
-                <div className="text-xs text-muted-foreground">Super Admin</div>
+                <div className="text-sm font-medium text-foreground">{profile?.full_name || "User"}</div>
+                <div className="text-xs text-muted-foreground">{role ? ROLE_LABELS[role] : "Loading..."}</div>
               </div>
             </div>
+            <Button variant="ghost" size="icon" onClick={signOut} title="Sign out">
+              <LogOut className="w-4 h-4" />
+            </Button>
           </div>
         </header>
-        {/* Page content */}
         <main className="flex-1 p-6 overflow-auto">
           <Outlet />
         </main>
