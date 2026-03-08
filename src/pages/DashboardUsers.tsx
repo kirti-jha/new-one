@@ -75,8 +75,12 @@ export default function DashboardUsers() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [filterRole, setFilterRole] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
   const [processing, setProcessing] = useState(false);
   const [impersonating, setImpersonating] = useState(false);
+  const [walletTotals, setWalletTotals] = useState<Record<string, number>>({});
 
   // Create dialog
   const [createOpen, setCreateOpen] = useState(false);
