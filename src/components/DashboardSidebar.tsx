@@ -30,13 +30,10 @@ const ROLE_LEVEL: Record<AppRole, number> = {
 };
 
 const navItems: NavItem[] = [
-  // Main
   { label: "Overview", icon: LayoutDashboard, path: "/dashboard", section: "Main" },
   { label: "Users", icon: Users, path: "/dashboard/users", minRole: "master_distributor", section: "Main" },
   { label: "Wallet & Funds", icon: Wallet, path: "/dashboard/wallet", section: "Main" },
   { label: "Transactions", icon: ArrowLeftRight, path: "/dashboard/transactions", section: "Main" },
-
-  // Services
   { label: "AEPS", icon: Fingerprint, path: "/dashboard/aeps", section: "Services" },
   { label: "BBPS", icon: Receipt, path: "/dashboard/bbps", section: "Services" },
   { label: "DMT", icon: Send, path: "/dashboard/dmt", section: "Services" },
@@ -55,15 +52,17 @@ const navItems: NavItem[] = [
   { label: "Payment Gateway", icon: QrCode, path: "/dashboard/pg", section: "Services" },
   { label: "POS Machine", icon: Landmark, path: "/dashboard/pos", section: "Services" },
   { label: "Sound Box", icon: Box, path: "/dashboard/sound-box", section: "Services" },
-
-  // Management
   { label: "Commissions", icon: BarChart3, path: "/dashboard/commissions", minRole: "distributor", section: "Management" },
   { label: "KYC", icon: FileText, path: "/dashboard/kyc", minRole: "distributor", section: "Management" },
   { label: "Security", icon: Shield, path: "/dashboard/security", allowedRoles: ["admin"], section: "Management" },
   { label: "Settings", icon: Settings, path: "/dashboard/settings", allowedRoles: ["admin"], section: "Management" },
 ];
 
-export default function DashboardSidebar() {
+interface Props {
+  onNavigate?: () => void;
+}
+
+export default function DashboardSidebar({ onNavigate }: Props) {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const { role } = useAuth();
@@ -75,7 +74,6 @@ export default function DashboardSidebar() {
     return true;
   });
 
-  // Group by section
   const sections: { name: string; items: typeof navItems }[] = [];
   let lastSection = "";
   for (const item of visibleItems) {
@@ -119,6 +117,7 @@ export default function DashboardSidebar() {
                 <Link
                   key={item.path}
                   to={item.path}
+                  onClick={onNavigate}
                   className={cn(
                     "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all",
                     isActive
@@ -138,7 +137,7 @@ export default function DashboardSidebar() {
 
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="flex items-center justify-center h-12 border-t border-sidebar-border text-sidebar-foreground hover:text-foreground transition-colors"
+        className="hidden lg:flex items-center justify-center h-12 border-t border-sidebar-border text-sidebar-foreground hover:text-foreground transition-colors"
       >
         <ChevronLeft className={cn("w-5 h-5 transition-transform", collapsed && "rotate-180")} />
       </button>
