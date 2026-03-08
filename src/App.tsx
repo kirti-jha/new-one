@@ -51,7 +51,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
-            {/* Signup removed — admin creates users */}
+            <Route path="/bootstrap" element={<BootstrapAdminPage />} />
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
             <Route
               path="/dashboard"
