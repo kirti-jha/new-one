@@ -93,6 +93,15 @@ Deno.serve(async (req) => {
           .eq("user_id", target_user_id);
         if (error) throw new Error(error.message);
         result.message = "Profile updated";
+
+        // Notify user
+        await adminClient.from("notifications").insert({
+          user_id: target_user_id,
+          title: "Profile Updated",
+          message: "Your profile has been updated by an administrator.",
+          type: "kyc_update",
+          reference_type: "profile",
+        });
         break;
       }
 
@@ -107,7 +116,16 @@ Deno.serve(async (req) => {
           .update({ role: new_role })
           .eq("user_id", target_user_id);
         if (error) throw new Error(error.message);
+        const ROLE_LABELS: Record<string, string> = { super_distributor: "Super Distributor", master_distributor: "Master Distributor", distributor: "Distributor", retailer: "Retailer" };
         result.message = `Role changed to ${new_role}`;
+
+        await adminClient.from("notifications").insert({
+          user_id: target_user_id,
+          title: "Role Changed",
+          message: `Your role has been changed to ${ROLE_LABELS[new_role] || new_role}.`,
+          type: "role_changed",
+          reference_type: "role",
+        });
         break;
       }
 
@@ -122,6 +140,14 @@ Deno.serve(async (req) => {
         });
         if (error) throw new Error(error.message);
         result.message = "User blocked";
+
+        await adminClient.from("notifications").insert({
+          user_id: target_user_id,
+          title: "Account Blocked",
+          message: "Your account has been blocked. Contact your administrator for assistance.",
+          type: "account_blocked",
+          reference_type: "account",
+        });
         break;
       }
 
@@ -136,6 +162,14 @@ Deno.serve(async (req) => {
         });
         if (error) throw new Error(error.message);
         result.message = "User unblocked";
+
+        await adminClient.from("notifications").insert({
+          user_id: target_user_id,
+          title: "Account Unblocked",
+          message: "Your account has been reactivated. You can now log in.",
+          type: "account_unblocked",
+          reference_type: "account",
+        });
         break;
       }
 
@@ -149,6 +183,14 @@ Deno.serve(async (req) => {
         });
         if (error) throw new Error(error.message);
         result.message = "Password reset successfully";
+
+        await adminClient.from("notifications").insert({
+          user_id: target_user_id,
+          title: "Password Reset",
+          message: "Your password has been reset by an administrator. Please log in with your new password.",
+          type: "password_reset",
+          reference_type: "account",
+        });
         break;
       }
 

@@ -129,6 +129,16 @@ Deno.serve(async (req) => {
       role,
     });
 
+    // Notify the new user
+    const ROLE_LABELS: Record<string, string> = { admin: "Admin", super_distributor: "Super Distributor", master_distributor: "Master Distributor", distributor: "Distributor", retailer: "Retailer" };
+    await adminClient.from("notifications").insert({
+      user_id: userId,
+      title: "Welcome to Abheepay!",
+      message: `Your account has been created as ${ROLE_LABELS[role] || role}. Welcome aboard!`,
+      type: "user_created",
+      reference_type: "account",
+    });
+
     return new Response(
       JSON.stringify({
         success: true,
