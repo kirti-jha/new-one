@@ -103,6 +103,13 @@ const App = () => (
               <Route path="service-management" element={<ProtectedRoute allowedRoles={["admin"]}><DashboardServiceManagement /></ProtectedRoute>} />
               <Route path="security" element={<ProtectedRoute allowedRoles={["admin"]}><DashboardSecurity /></ProtectedRoute>} />
               <Route path="settings" element={<ProtectedRoute allowedRoles={["admin"]}><DashboardSettings /></ProtectedRoute>} />
+              {/* User Settings (non-admin) */}
+              <Route path="commission-plan" element={<DashboardCommissionPlan />} />
+              <Route path="profile" element={<DashboardProfile />} />
+              <Route path="tpin" element={<DashboardTpin />} />
+              <Route path="change-password" element={<DashboardChangePassword />} />
+              <Route path="certificate" element={<DashboardCertificate />} />
+              <Route path="device-driver" element={<DashboardDeviceDriver />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
