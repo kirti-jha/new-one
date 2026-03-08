@@ -101,6 +101,15 @@ Deno.serve(async (req) => {
         created_by: caller.id,
       });
 
+      // Notify the recipient
+      await adminClient.from("notifications").insert({
+        user_id: to_user_id,
+        title: "Wallet Top-Up",
+        message: `₹${parseFloat(amount).toLocaleString("en-IN")} has been added to your wallet by Admin.`,
+        type: "wallet_credit",
+        reference_type: "wallet",
+      });
+
       return new Response(JSON.stringify({ success: true, new_balance: newBalance }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
