@@ -65,6 +65,7 @@ const App = () => (
               <Route index element={<DashboardOverview />} />
               <Route path="users" element={<ProtectedRoute minRole="master_distributor"><DashboardUsers /></ProtectedRoute>} />
               <Route path="wallet" element={<DashboardWallet />} />
+              <Route path="fund-requests" element={<DashboardFundRequests />} />
               <Route path="transactions" element={<DashboardTransactions />} />
               {/* Services */}
               <Route path="aeps" element={<DashboardAEPS />} />
