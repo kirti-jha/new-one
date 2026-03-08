@@ -111,7 +111,7 @@ export default function DashboardSidebar({ onNavigate }: Props) {
     if (serviceItems.some((s) => location.pathname === s.path)) setServicesOpen(true);
   }, [location.pathname, serviceItems]);
 
-  const nonServiceItems = [...staticItems, ...managementItems].filter((item) => {
+  const nonServiceItems = [...staticItems, ...managementItems, ...userSettingsItems].filter((item) => {
     if (!role) return false;
     // Master-only items
     if (item.masterOnly && !isMasterAdmin) return false;
