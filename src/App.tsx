@@ -64,6 +64,7 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route path="/bootstrap" element={<BootstrapAdminPage />} />
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
+            <Route path="/impersonate" element={<ImpersonatePage />} />
             <Route
               path="/dashboard"
               element={
