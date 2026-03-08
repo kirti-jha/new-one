@@ -524,7 +524,6 @@ export default function DashboardUsers() {
           </Button>
         </div>
       </div>
-      </div>
 
       <div className="rounded-xl bg-gradient-card border border-border overflow-hidden">
         <div className="flex items-center gap-2 p-5 border-b border-border">
