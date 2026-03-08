@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Wallet, ArrowUpRight, ArrowDownRight, Plus, Clock,
-  CheckCircle2, Send, ArrowDownLeft, RefreshCw, CreditCard, Download, Lock,
+  CheckCircle2, Send, ArrowDownLeft, RefreshCw, CreditCard, Download, Lock, Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,6 +73,7 @@ export default function DashboardWallet() {
   const [topUpOpen, setTopUpOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [pgOpen, setPgOpen] = useState(false);
+  const [bankDepositOpen, setBankDepositOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
 
   // Top-up form (admin only)
@@ -88,6 +89,12 @@ export default function DashboardWallet() {
 
   // PG form
   const [pgAmount, setPgAmount] = useState("");
+
+  // Bank deposit form (admin self top-up)
+  const [bankAmount, setBankAmount] = useState("");
+  const [bankRef, setBankRef] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [bankDesc, setBankDesc] = useState("");
 
   const fetchWallet = useCallback(async () => {
     if (!user) return;
@@ -228,6 +235,29 @@ export default function DashboardWallet() {
     }
   };
 
+  const handleBankDeposit = async () => {
+    const amt = parseFloat(bankAmount);
+    if (!amt || amt <= 0 || !bankRef.trim()) {
+      toast({ title: "Invalid input", description: "Enter a valid amount and bank reference.", variant: "destructive" });
+      return;
+    }
+    setProcessing(true);
+    try {
+      const res = await supabase.functions.invoke("wallet-transfer", {
+        body: { action: "admin_bank_topup", amount: amt, bank_reference: bankRef.trim(), bank_name: bankName.trim(), description: bankDesc.trim() },
+      });
+      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
+      toast({ title: "Bank Deposit Recorded", description: `₹${amt.toLocaleString("en-IN")} added to your wallet.` });
+      setBankDepositOpen(false);
+      setBankAmount(""); setBankRef(""); setBankName(""); setBankDesc("");
+      fetchWallet(); fetchTransactions();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const handleExportLedger = () => {
     if (!transactions.length) {
       toast({ title: "No data to export", variant: "destructive" });
@@ -272,8 +302,13 @@ export default function DashboardWallet() {
         </div>
         <div className="flex gap-2 flex-wrap">
           {isAdmin && (
-            <Button variant="hero" size="sm" onClick={() => setTopUpOpen(true)}>
-              <Plus className="w-4 h-4 mr-1" /> Top Up
+            <Button variant="hero" size="sm" onClick={() => setBankDepositOpen(true)}>
+              <Building2 className="w-4 h-4 mr-1" /> Add Fund (Bank)
+            </Button>
+          )}
+          {isAdmin && (
+            <Button variant="outline" size="sm" onClick={() => setTopUpOpen(true)}>
+              <Plus className="w-4 h-4 mr-1" /> Top Up User
             </Button>
           )}
           {role !== "retailer" && (
@@ -552,6 +587,43 @@ export default function DashboardWallet() {
               <Button variant="outline" onClick={() => setPgOpen(false)}>Cancel</Button>
               <Button onClick={handlePGPayment} disabled={processing}>
                 <CreditCard className="w-4 h-4 mr-1.5" /> {processing ? "Processing..." : "Pay & Add Fund"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Admin Bank Deposit Dialog */}
+      <Dialog open={bankDepositOpen} onOpenChange={setBankDepositOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Fund via Bank Account</DialogTitle>
+            <DialogDescription>Record a bank deposit to add funds to your wallet.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="p-3 rounded-lg bg-muted/50 border text-sm">
+              Current balance: <span className="font-bold text-foreground">{formatINR(wallet?.balance ?? 0)}</span>
+            </div>
+            <div className="space-y-2">
+              <Label>Amount (₹)</Label>
+              <Input type="number" min={1} placeholder="Enter deposit amount" value={bankAmount} onChange={(e) => setBankAmount(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Bank Name</Label>
+              <Input placeholder="e.g. SBI, HDFC, ICICI" value={bankName} onChange={(e) => setBankName(e.target.value)} maxLength={100} />
+            </div>
+            <div className="space-y-2">
+              <Label>Transaction Reference / UTR <span className="text-destructive">*</span></Label>
+              <Input placeholder="e.g. UTR number or NEFT reference" value={bankRef} onChange={(e) => setBankRef(e.target.value)} maxLength={100} />
+            </div>
+            <div className="space-y-2">
+              <Label>Remarks (optional)</Label>
+              <Input placeholder="Any additional notes" value={bankDesc} onChange={(e) => setBankDesc(e.target.value)} maxLength={200} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setBankDepositOpen(false)}>Cancel</Button>
+              <Button onClick={handleBankDeposit} disabled={processing}>
+                <Building2 className="w-4 h-4 mr-1.5" /> {processing ? "Processing..." : "Record Deposit"}
               </Button>
             </div>
           </div>
