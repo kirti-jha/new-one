@@ -298,11 +298,19 @@ export type Database = {
       }
       profiles: {
         Row: {
+          aadhaar_image_path: string | null
+          aadhaar_number: string | null
+          bank_account_holder: string | null
+          bank_account_number: string | null
+          bank_ifsc: string | null
+          bank_name: string | null
           business_name: string | null
           created_at: string
           full_name: string
           id: string
           kyc_status: string
+          pan_image_path: string | null
+          pan_number: string | null
           parent_id: string | null
           phone: string | null
           status: string
@@ -310,11 +318,19 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          aadhaar_image_path?: string | null
+          aadhaar_number?: string | null
+          bank_account_holder?: string | null
+          bank_account_number?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
           business_name?: string | null
           created_at?: string
           full_name?: string
           id?: string
           kyc_status?: string
+          pan_image_path?: string | null
+          pan_number?: string | null
           parent_id?: string | null
           phone?: string | null
           status?: string
@@ -322,11 +338,19 @@ export type Database = {
           user_id: string
         }
         Update: {
+          aadhaar_image_path?: string | null
+          aadhaar_number?: string | null
+          bank_account_holder?: string | null
+          bank_account_number?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
           business_name?: string | null
           created_at?: string
           full_name?: string
           id?: string
           kyc_status?: string
+          pan_image_path?: string | null
+          pan_number?: string | null
           parent_id?: string | null
           phone?: string | null
           status?: string
