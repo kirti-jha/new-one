@@ -107,6 +107,120 @@ export type Database = {
         }
         Relationships: []
       }
+      company_bank_accounts: {
+        Row: {
+          account_name: string
+          account_number: string
+          bank_name: string
+          created_at: string
+          created_by: string
+          id: string
+          ifsc_code: string
+          is_active: boolean
+          updated_at: string
+          upi_id: string | null
+        }
+        Insert: {
+          account_name: string
+          account_number: string
+          bank_name: string
+          created_at?: string
+          created_by: string
+          id?: string
+          ifsc_code: string
+          is_active?: boolean
+          updated_at?: string
+          upi_id?: string | null
+        }
+        Update: {
+          account_name?: string
+          account_number?: string
+          bank_name?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          ifsc_code?: string
+          is_active?: boolean
+          updated_at?: string
+          upi_id?: string | null
+        }
+        Relationships: []
+      }
+      fund_requests: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          bank_account_id: string
+          created_at: string
+          id: string
+          payment_date: string
+          payment_mode: string
+          payment_reference: string
+          receipt_name: string | null
+          receipt_path: string | null
+          rejection_reason: string | null
+          remarks: string | null
+          requester_id: string
+          status: string
+          updated_at: string
+          wallet_txn_id: string | null
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          bank_account_id: string
+          created_at?: string
+          id?: string
+          payment_date: string
+          payment_mode?: string
+          payment_reference: string
+          receipt_name?: string | null
+          receipt_path?: string | null
+          rejection_reason?: string | null
+          remarks?: string | null
+          requester_id: string
+          status?: string
+          updated_at?: string
+          wallet_txn_id?: string | null
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          bank_account_id?: string
+          created_at?: string
+          id?: string
+          payment_date?: string
+          payment_mode?: string
+          payment_reference?: string
+          receipt_name?: string | null
+          receipt_path?: string | null
+          rejection_reason?: string | null
+          remarks?: string | null
+          requester_id?: string
+          status?: string
+          updated_at?: string
+          wallet_txn_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fund_requests_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "company_bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fund_requests_wallet_txn_id_fkey"
+            columns: ["wallet_txn_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kyc_documents: {
         Row: {
           created_at: string
@@ -285,6 +399,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_view_receipt: {
+        Args: { _folder_owner: string; _user_id: string }
+        Returns: boolean
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
