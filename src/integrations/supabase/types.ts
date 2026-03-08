@@ -308,6 +308,7 @@ export type Database = {
           created_at: string
           full_name: string
           id: string
+          is_master_admin: boolean
           kyc_status: string
           pan_image_path: string | null
           pan_number: string | null
@@ -328,6 +329,7 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
+          is_master_admin?: boolean
           kyc_status?: string
           pan_image_path?: string | null
           pan_number?: string | null
@@ -348,6 +350,7 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
+          is_master_admin?: boolean
           kyc_status?: string
           pan_image_path?: string | null
           pan_number?: string | null
@@ -400,6 +403,51 @@ export type Database = {
           service_key?: string
           service_label?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      staff_permissions: {
+        Row: {
+          can_manage_commissions: boolean
+          can_manage_finances: boolean
+          can_manage_security: boolean
+          can_manage_services: boolean
+          can_manage_settings: boolean
+          can_manage_users: boolean
+          can_view_reports: boolean
+          created_at: string
+          granted_by: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          can_manage_commissions?: boolean
+          can_manage_finances?: boolean
+          can_manage_security?: boolean
+          can_manage_services?: boolean
+          can_manage_settings?: boolean
+          can_manage_users?: boolean
+          can_view_reports?: boolean
+          created_at?: string
+          granted_by: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          can_manage_commissions?: boolean
+          can_manage_finances?: boolean
+          can_manage_security?: boolean
+          can_manage_services?: boolean
+          can_manage_settings?: boolean
+          can_manage_users?: boolean
+          can_view_reports?: boolean
+          created_at?: string
+          granted_by?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -590,10 +638,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_staff_permission: {
+        Args: { _permission: string; _user_id: string }
+        Returns: boolean
+      }
       is_ancestor_of: {
         Args: { _profile_id: string; _user_id: string }
         Returns: boolean
       }
+      is_master_admin: { Args: { _user_id: string }; Returns: boolean }
       role_level: {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
         Returns: number
