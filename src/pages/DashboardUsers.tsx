@@ -302,7 +302,6 @@ export default function DashboardUsers() {
   };
 
   const handleImpersonate = async (u: UserRow) => {
-  const handleImpersonate = async (u: UserRow) => {
     setImpersonating(true);
     try {
       const res = await supabase.functions.invoke("impersonate-user", {
