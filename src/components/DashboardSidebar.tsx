@@ -5,7 +5,7 @@ import {
   Shield, Zap, ChevronLeft, Fingerprint, Send, Receipt, CreditCard, BarChart3,
   FileText, Smartphone, Banknote, Building2, CreditCard as CreditCardIcon,
   Plane, Package, ShieldCheck, Landmark, Radio, Box, QrCode, FileSpreadsheet,
-  Settings2, ChevronDown, UserCog,
+  Settings2, ChevronDown, UserCog, User, KeyRound, Lock, Award, Download,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
