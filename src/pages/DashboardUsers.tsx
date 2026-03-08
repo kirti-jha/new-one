@@ -404,17 +404,25 @@ export default function DashboardUsers() {
   const formatINR = (v: number) => `₹${v.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
 
   const totalUsers = users.filter((u) => u.role !== "admin").length;
-  const distributorCount = users.filter((u) => u.role === "distributor" || u.role === "master_distributor" || u.role === "super_distributor").length;
+  const sdCount = users.filter((u) => u.role === "super_distributor").length;
+  const mdCount = users.filter((u) => u.role === "master_distributor").length;
+  const distributorCount = users.filter((u) => u.role === "distributor").length;
   const retailerCount = users.filter((u) => u.role === "retailer").length;
   const activeCount = users.filter((u) => u.status === "active" && u.role !== "admin").length;
   const deactivatedCount = users.filter((u) => u.status !== "active" && u.role !== "admin").length;
 
+  const handleCardClick = (roleFilter: string) => {
+    setFilterRole(filterRole === roleFilter ? "all" : roleFilter);
+  };
+
   const statsCards = [
-    { label: "Total Users", value: totalUsers, sub: formatINR(walletTotals.total || 0), icon: Users, color: "text-primary bg-primary/10" },
-    { label: "Distributors", value: distributorCount, sub: formatINR(walletTotals.distributor || 0), icon: UserPlus, color: "text-destructive bg-destructive/10" },
-    { label: "Retailers", value: retailerCount, sub: formatINR(walletTotals.retailer || 0), icon: Store, color: "text-chart-2 bg-chart-2/10" },
-    { label: "Active", value: activeCount, sub: null, icon: UserCheck, color: "text-success bg-success/10" },
-    { label: "Deactivated", value: deactivatedCount, sub: null, icon: UserX, color: "text-warning bg-warning/10" },
+    { label: "Total Users", value: totalUsers, sub: formatINR(walletTotals.total || 0), icon: Users, color: "text-primary bg-primary/10", filterKey: "all" },
+    { label: "Super Distributors", value: sdCount, sub: formatINR(walletTotals.super_distributor || 0), icon: ShieldCheck, color: "text-chart-1 bg-chart-1/10", filterKey: "super_distributor" },
+    { label: "Master Distributors", value: mdCount, sub: formatINR(walletTotals.master_distributor || 0), icon: ShieldAlert, color: "text-chart-3 bg-chart-3/10", filterKey: "master_distributor" },
+    { label: "Distributors", value: distributorCount, sub: formatINR(walletTotals.distributor || 0), icon: UserPlus, color: "text-destructive bg-destructive/10", filterKey: "distributor" },
+    { label: "Retailers", value: retailerCount, sub: formatINR(walletTotals.retailer || 0), icon: Store, color: "text-chart-2 bg-chart-2/10", filterKey: "retailer" },
+    { label: "Active", value: activeCount, sub: null, icon: UserCheck, color: "text-success bg-success/10", filterKey: "_active" },
+    { label: "Deactivated", value: deactivatedCount, sub: null, icon: UserX, color: "text-warning bg-warning/10", filterKey: "_deactivated" },
   ];
 
   const handleSearch = () => {
