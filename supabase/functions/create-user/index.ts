@@ -11,7 +11,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Verify the calling user is an admin
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "No authorization header" }), {
@@ -23,7 +22,6 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Client with caller's token to verify admin role
     const callerClient = createClient(supabaseUrl, supabaseServiceKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -38,7 +36,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check caller is admin using service role client
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
     const { data: roleData } = await adminClient
       .from("user_roles")
@@ -54,7 +51,11 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { email, password, full_name, phone, business_name, role, parent_id } = body;
+    const {
+      email, password, full_name, phone, business_name, role, parent_id,
+      aadhaar_number, pan_number, aadhaar_image_path, pan_image_path,
+      bank_name, bank_account_number, bank_ifsc, bank_account_holder,
+    } = body;
 
     if (!email || !password || !full_name || !role) {
       return new Response(JSON.stringify({ error: "Missing required fields: email, password, full_name, role" }), {
@@ -88,7 +89,7 @@ Deno.serve(async (req) => {
 
     const userId = newUser.user.id;
 
-    // Update profile (created by trigger) with additional fields
+    // Update profile (created by trigger) with all fields
     await adminClient
       .from("profiles")
       .update({
@@ -96,6 +97,14 @@ Deno.serve(async (req) => {
         phone: phone || null,
         business_name: business_name || null,
         parent_id: parent_id || null,
+        aadhaar_number: aadhaar_number || null,
+        pan_number: pan_number || null,
+        aadhaar_image_path: aadhaar_image_path || null,
+        pan_image_path: pan_image_path || null,
+        bank_name: bank_name || null,
+        bank_account_number: bank_account_number || null,
+        bank_ifsc: bank_ifsc || null,
+        bank_account_holder: bank_account_holder || null,
       })
       .eq("user_id", userId);
 

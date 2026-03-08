@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Users, Search, UserPlus, CheckCircle2, XCircle, Clock,
-  MoreVertical, Pencil, ShieldAlert, ShieldCheck, KeyRound, LogIn, Settings2, ToggleLeft, ToggleRight,
+  MoreVertical, Pencil, ShieldAlert, ShieldCheck, KeyRound, LogIn, Settings2, Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
@@ -61,15 +62,15 @@ const kycBadge: Record<string, { icon: typeof CheckCircle2; className: string }>
 interface ServiceToggle {
   service_key: string;
   service_label: string;
-  is_enabled: boolean; // global
-  user_disabled: boolean; // per-user override
+  is_enabled: boolean;
+  user_disabled: boolean;
 }
 
 export default function DashboardUsers() {
   const { user: currentUser, role: myRole } = useAuth();
   const { toast } = useToast();
   const isAdmin = myRole === "admin";
-  const canManage = myRole ? ROLE_LEVEL[myRole] < 5 : false; // everyone except retailer
+  const canManage = myRole ? ROLE_LEVEL[myRole] < 5 : false;
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -86,6 +87,19 @@ export default function DashboardUsers() {
   const [formRole, setFormRole] = useState<AppRole | "">("");
   const [formParent, setFormParent] = useState("");
   const [parentOptions, setParentOptions] = useState<{ id: string; name: string; role: string }[]>([]);
+  // KYC fields
+  const [formAadhaar, setFormAadhaar] = useState("");
+  const [formPan, setFormPan] = useState("");
+  const [formAadhaarFile, setFormAadhaarFile] = useState<File | null>(null);
+  const [formPanFile, setFormPanFile] = useState<File | null>(null);
+  // Bank fields
+  const [formBankName, setFormBankName] = useState("");
+  const [formBankAcct, setFormBankAcct] = useState("");
+  const [formBankIfsc, setFormBankIfsc] = useState("");
+  const [formBankHolder, setFormBankHolder] = useState("");
+
+  const aadhaarInputRef = useRef<HTMLInputElement>(null);
+  const panInputRef = useRef<HTMLInputElement>(null);
 
   // Edit dialog
   const [editOpen, setEditOpen] = useState(false);
@@ -163,6 +177,17 @@ export default function DashboardUsers() {
     }
   };
 
+  const uploadDocImage = async (userId: string, file: File, docType: string): Promise<string | null> => {
+    const ext = file.name.split(".").pop();
+    const path = `${userId}/${docType}_${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("user-documents").upload(path, file);
+    if (error) {
+      console.error("Upload error:", error);
+      return null;
+    }
+    return path;
+  };
+
   const handleCreate = async () => {
     if (!formEmail || !formPassword || !formName || !formRole) {
       toast({ title: "Missing fields", description: "Fill all required fields.", variant: "destructive" });
@@ -174,23 +199,59 @@ export default function DashboardUsers() {
     }
     setProcessing(true);
     try {
+      // First create user to get their ID
       const res = await supabase.functions.invoke("create-user", {
         body: {
           email: formEmail.trim(), password: formPassword, full_name: formName.trim(),
           phone: formPhone.trim() || null, business_name: formBusiness.trim() || null,
           role: formRole, parent_id: formParent || null,
+          aadhaar_number: formAadhaar.trim() || null,
+          pan_number: formPan.trim().toUpperCase() || null,
+          bank_name: formBankName.trim() || null,
+          bank_account_number: formBankAcct.trim() || null,
+          bank_ifsc: formBankIfsc.trim().toUpperCase() || null,
+          bank_account_holder: formBankHolder.trim() || null,
         },
       });
       if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
+
+      const newUserId = res.data.user.id;
+
+      // Upload images if provided (using admin's session — RLS allows admins)
+      let aadhaarPath: string | null = null;
+      let panPath: string | null = null;
+
+      if (formAadhaarFile) {
+        aadhaarPath = await uploadDocImage(newUserId, formAadhaarFile, "aadhaar");
+      }
+      if (formPanFile) {
+        panPath = await uploadDocImage(newUserId, formPanFile, "pan");
+      }
+
+      // Update profile with image paths if uploaded
+      if (aadhaarPath || panPath) {
+        const updateData: Record<string, string> = {};
+        if (aadhaarPath) updateData.aadhaar_image_path = aadhaarPath;
+        if (panPath) updateData.pan_image_path = panPath;
+        await supabase.from("profiles").update(updateData).eq("user_id", newUserId);
+      }
+
       toast({ title: "User created!", description: `${formName} added as ${ROLE_LABELS[formRole as AppRole]}.` });
       setCreateOpen(false);
-      setFormEmail(""); setFormPassword(""); setFormName(""); setFormPhone(""); setFormBusiness(""); setFormRole(""); setFormParent("");
+      resetCreateForm();
       fetchUsers();
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setProcessing(false);
     }
+  };
+
+  const resetCreateForm = () => {
+    setFormEmail(""); setFormPassword(""); setFormName(""); setFormPhone(""); setFormBusiness("");
+    setFormRole(""); setFormParent(""); setFormAadhaar(""); setFormPan("");
+    setFormAadhaarFile(null); setFormPanFile(null);
+    setFormBankName(""); setFormBankAcct(""); setFormBankIfsc(""); setFormBankHolder("");
   };
 
   const handleEditSave = async () => {
@@ -233,19 +294,14 @@ export default function DashboardUsers() {
       const { access_token, refresh_token } = res.data;
       if (!access_token || !refresh_token) throw new Error("Failed to get session tokens");
 
-      // Store original session info for returning later
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       if (currentSession) {
         localStorage.setItem("impersonation_return_token", currentSession.access_token);
         localStorage.setItem("impersonation_return_refresh", currentSession.refresh_token!);
       }
 
-      // Set the new session
       await supabase.auth.setSession({ access_token, refresh_token });
-
-      toast({ title: `Logged in as ${u.full_name}`, description: "You are now viewing as this user. Refresh to see their dashboard." });
-
-      // Force reload to apply new session
+      toast({ title: `Logged in as ${u.full_name}`, description: "You are now viewing as this user." });
       window.location.href = "/dashboard";
     } catch (err: any) {
       toast({ title: "Impersonation failed", description: err.message, variant: "destructive" });
@@ -256,14 +312,12 @@ export default function DashboardUsers() {
 
   const openServiceManagement = async (u: UserRow) => {
     setServiceUser(u);
-    // Fetch global services and user overrides
     const [{ data: services }, { data: overrides }] = await Promise.all([
       supabase.from("service_config").select("service_key, service_label, is_enabled").order("service_label"),
       supabase.from("user_service_overrides").select("service_key, is_enabled").eq("user_id", u.user_id),
     ]);
 
     const overrideMap = new Map((overrides || []).map((o: any) => [o.service_key, o.is_enabled]));
-
     setServiceToggles(
       (services || []).map((s: any) => ({
         service_key: s.service_key,
@@ -281,7 +335,7 @@ export default function DashboardUsers() {
     try {
       const ok = await invokeManageUser("toggle_service", serviceUser.user_id, {
         service_key: serviceKey,
-        is_enabled: currentlyDisabled, // if currently disabled, enable it
+        is_enabled: currentlyDisabled,
       });
       if (ok) {
         setServiceToggles((prev) =>
@@ -320,7 +374,6 @@ export default function DashboardUsers() {
       u.business_name?.toLowerCase().includes(q) || u.role?.toLowerCase().includes(q);
   });
 
-  // Determine which users the current user can manage
   const canManageUser = (u: UserRow) => {
     if (!myRole || !u.role) return false;
     if (u.user_id === currentUser?.id) return false;
@@ -342,26 +395,19 @@ export default function DashboardUsers() {
         )}
       </div>
 
-      {/* Return from impersonation banner */}
       {localStorage.getItem("impersonation_return_token") && (
         <div className="p-3 rounded-xl border border-warning/50 bg-warning/10 flex items-center justify-between">
-          <span className="text-sm text-foreground font-medium">
-            ⚠️ You are viewing as an impersonated user.
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={async () => {
-              const token = localStorage.getItem("impersonation_return_token");
-              const refresh = localStorage.getItem("impersonation_return_refresh");
-              if (token && refresh) {
-                await supabase.auth.setSession({ access_token: token, refresh_token: refresh });
-                localStorage.removeItem("impersonation_return_token");
-                localStorage.removeItem("impersonation_return_refresh");
-                window.location.href = "/dashboard/users";
-              }
-            }}
-          >
+          <span className="text-sm text-foreground font-medium">⚠️ You are viewing as an impersonated user.</span>
+          <Button variant="outline" size="sm" onClick={async () => {
+            const token = localStorage.getItem("impersonation_return_token");
+            const refresh = localStorage.getItem("impersonation_return_refresh");
+            if (token && refresh) {
+              await supabase.auth.setSession({ access_token: token, refresh_token: refresh });
+              localStorage.removeItem("impersonation_return_token");
+              localStorage.removeItem("impersonation_return_refresh");
+              window.location.href = "/dashboard/users";
+            }
+          }}>
             Return to Your Account
           </Button>
         </div>
@@ -369,11 +415,8 @@ export default function DashboardUsers() {
 
       <div className="flex items-center gap-2 max-w-sm px-3 py-2 rounded-lg border border-border bg-card">
         <Search className="w-4 h-4 text-muted-foreground" />
-        <input
-          type="text" placeholder="Search by name, phone, role..."
-          value={search} onChange={(e) => setSearch(e.target.value)}
-          className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none flex-1"
-        />
+        <input type="text" placeholder="Search by name, phone, role..." value={search} onChange={(e) => setSearch(e.target.value)}
+          className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none flex-1" />
       </div>
 
       <div className="rounded-xl bg-gradient-card border border-border overflow-hidden">
@@ -478,37 +521,88 @@ export default function DashboardUsers() {
       </div>
 
       {/* Create User Dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="sm:max-w-lg">
+      <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) resetCreateForm(); }}>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New User</DialogTitle>
-            <DialogDescription>Add a new user to the distribution hierarchy.</DialogDescription>
+            <DialogDescription>Add a new user with KYC documents and bank details.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 mt-2">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2"><Label>Full Name *</Label><Input placeholder="Rajesh Kumar" value={formName} onChange={(e) => setFormName(e.target.value)} maxLength={100} /></div>
-              <div className="space-y-2"><Label>Email *</Label><Input type="email" placeholder="user@example.com" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} maxLength={255} /></div>
-              <div className="space-y-2"><Label>Password *</Label><Input type="password" placeholder="Min 6 characters" value={formPassword} onChange={(e) => setFormPassword(e.target.value)} /></div>
-              <div className="space-y-2"><Label>Phone</Label><Input placeholder="9876543210" value={formPhone} onChange={(e) => setFormPhone(e.target.value)} maxLength={15} /></div>
-              <div className="space-y-2"><Label>Business Name</Label><Input placeholder="Business / Shop name" value={formBusiness} onChange={(e) => setFormBusiness(e.target.value)} maxLength={200} /></div>
-              <div className="space-y-2">
-                <Label>Role *</Label>
-                <Select value={formRole} onValueChange={(v) => { setFormRole(v as AppRole); setFormParent(""); }}>
-                  <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
-                  <SelectContent>{CREATABLE_ROLES.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
-                </Select>
+          <div className="space-y-5 mt-2">
+            {/* Basic Info */}
+            <div>
+              <h3 className="text-sm font-semibold text-foreground mb-3">Basic Information</h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2"><Label>Full Name *</Label><Input placeholder="Rajesh Kumar" value={formName} onChange={(e) => setFormName(e.target.value)} maxLength={100} /></div>
+                <div className="space-y-2"><Label>Email *</Label><Input type="email" placeholder="user@example.com" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} maxLength={255} /></div>
+                <div className="space-y-2"><Label>Password *</Label><Input type="password" placeholder="Min 6 characters" value={formPassword} onChange={(e) => setFormPassword(e.target.value)} /></div>
+                <div className="space-y-2"><Label>Phone</Label><Input placeholder="9876543210" value={formPhone} onChange={(e) => setFormPhone(e.target.value)} maxLength={15} /></div>
+                <div className="space-y-2"><Label>Business Name</Label><Input placeholder="Business / Shop name" value={formBusiness} onChange={(e) => setFormBusiness(e.target.value)} maxLength={200} /></div>
+                <div className="space-y-2">
+                  <Label>Role *</Label>
+                  <Select value={formRole} onValueChange={(v) => { setFormRole(v as AppRole); setFormParent(""); }}>
+                    <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                    <SelectContent>{CREATABLE_ROLES.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {parentOptions.length > 0 && (
+                <div className="space-y-2 mt-4">
+                  <Label>Parent (Upline)</Label>
+                  <Select value={formParent} onValueChange={setFormParent}>
+                    <SelectTrigger><SelectValue placeholder="Select parent" /></SelectTrigger>
+                    <SelectContent>{parentOptions.map((p) => <SelectItem key={p.id} value={p.id}>{p.name} ({p.role})</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              )}
+              {formRole === "super_distributor" && <p className="text-xs text-muted-foreground mt-2">Reports directly to Admin.</p>}
+            </div>
+
+            <Separator />
+
+            {/* KYC Details */}
+            <div>
+              <h3 className="text-sm font-semibold text-foreground mb-3">KYC Details</h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Aadhaar Number</Label>
+                  <Input placeholder="XXXX XXXX XXXX" value={formAadhaar} onChange={(e) => setFormAadhaar(e.target.value.replace(/[^0-9\s]/g, ""))} maxLength={14} />
+                </div>
+                <div className="space-y-2">
+                  <Label>PAN Number</Label>
+                  <Input placeholder="ABCDE1234F" value={formPan} onChange={(e) => setFormPan(e.target.value.toUpperCase())} maxLength={10} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Aadhaar Image</Label>
+                  <input ref={aadhaarInputRef} type="file" accept="image/*,.pdf" className="hidden"
+                    onChange={(e) => setFormAadhaarFile(e.target.files?.[0] || null)} />
+                  <Button type="button" variant="outline" className="w-full justify-start text-muted-foreground" onClick={() => aadhaarInputRef.current?.click()}>
+                    <Upload className="w-4 h-4 mr-2" /> {formAadhaarFile ? formAadhaarFile.name : "Upload Aadhaar"}
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  <Label>PAN Image</Label>
+                  <input ref={panInputRef} type="file" accept="image/*,.pdf" className="hidden"
+                    onChange={(e) => setFormPanFile(e.target.files?.[0] || null)} />
+                  <Button type="button" variant="outline" className="w-full justify-start text-muted-foreground" onClick={() => panInputRef.current?.click()}>
+                    <Upload className="w-4 h-4 mr-2" /> {formPanFile ? formPanFile.name : "Upload PAN"}
+                  </Button>
+                </div>
               </div>
             </div>
-            {parentOptions.length > 0 && (
-              <div className="space-y-2">
-                <Label>Parent (Upline)</Label>
-                <Select value={formParent} onValueChange={setFormParent}>
-                  <SelectTrigger><SelectValue placeholder="Select parent" /></SelectTrigger>
-                  <SelectContent>{parentOptions.map((p) => <SelectItem key={p.id} value={p.id}>{p.name} ({p.role})</SelectItem>)}</SelectContent>
-                </Select>
+
+            <Separator />
+
+            {/* Bank Details */}
+            <div>
+              <h3 className="text-sm font-semibold text-foreground mb-3">Bank Details</h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2"><Label>Bank Name</Label><Input placeholder="State Bank of India" value={formBankName} onChange={(e) => setFormBankName(e.target.value)} maxLength={100} /></div>
+                <div className="space-y-2"><Label>Account Holder Name</Label><Input placeholder="Account holder name" value={formBankHolder} onChange={(e) => setFormBankHolder(e.target.value)} maxLength={100} /></div>
+                <div className="space-y-2"><Label>Account Number</Label><Input placeholder="Account number" value={formBankAcct} onChange={(e) => setFormBankAcct(e.target.value)} maxLength={20} /></div>
+                <div className="space-y-2"><Label>IFSC Code</Label><Input placeholder="SBIN0001234" value={formBankIfsc} onChange={(e) => setFormBankIfsc(e.target.value.toUpperCase())} maxLength={11} /></div>
               </div>
-            )}
-            {formRole === "super_distributor" && <p className="text-xs text-muted-foreground">Reports directly to Admin.</p>}
+            </div>
+
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
               <Button onClick={handleCreate} disabled={processing}><UserPlus className="w-4 h-4 mr-1.5" />{processing ? "Creating..." : "Create User"}</Button>
@@ -589,15 +683,11 @@ export default function DashboardUsers() {
           </DialogHeader>
           <div className="space-y-2 mt-2 max-h-[400px] overflow-y-auto">
             {serviceToggles.map((s) => (
-              <div
-                key={s.service_key}
-                className={`flex items-center justify-between p-3 rounded-lg border ${!s.is_enabled ? "opacity-50" : s.user_disabled ? "border-destructive/30 bg-destructive/5" : "border-border"}`}
-              >
+              <div key={s.service_key}
+                className={`flex items-center justify-between p-3 rounded-lg border ${!s.is_enabled ? "opacity-50" : s.user_disabled ? "border-destructive/30 bg-destructive/5" : "border-border"}`}>
                 <div>
                   <p className="text-sm font-medium text-foreground">{s.service_label}</p>
-                  {!s.is_enabled && (
-                    <p className="text-[10px] text-destructive">Globally disabled by admin</p>
-                  )}
+                  {!s.is_enabled && <p className="text-[10px] text-destructive">Globally disabled by admin</p>}
                 </div>
                 <Switch
                   checked={s.is_enabled && !s.user_disabled}
