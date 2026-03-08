@@ -387,10 +387,12 @@ export default function DashboardUsers() {
   };
 
   const filtered = users.filter((u) => {
-    if (!search) return true;
     const q = search.toLowerCase();
-    return u.full_name?.toLowerCase().includes(q) || u.phone?.toLowerCase().includes(q) ||
+    const matchesSearch = !q || u.full_name?.toLowerCase().includes(q) || u.phone?.toLowerCase().includes(q) ||
       u.business_name?.toLowerCase().includes(q) || u.role?.toLowerCase().includes(q);
+    const matchesRole = filterRole === "all" || u.role === filterRole;
+    const matchesStatus = filterStatus === "all" || u.status === filterStatus;
+    return matchesSearch && matchesRole && matchesStatus;
   });
 
   const canManageUser = (u: UserRow) => {
