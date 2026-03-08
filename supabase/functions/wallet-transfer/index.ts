@@ -199,6 +199,26 @@ Deno.serve(async (req) => {
         created_by: caller.id,
       });
 
+      // Notify recipient of incoming transfer
+      const { data: senderProfile } = await adminClient.from("profiles").select("full_name").eq("user_id", caller.id).single();
+      await adminClient.from("notifications").insert({
+        user_id: to_user_id,
+        title: "Funds Received",
+        message: `₹${parseFloat(amount).toLocaleString("en-IN")} received from ${senderProfile?.full_name || "Upline"}.`,
+        type: "wallet_credit",
+        reference_type: "wallet",
+      });
+
+      // Notify sender of successful transfer
+      const { data: receiverProfile } = await adminClient.from("profiles").select("full_name").eq("user_id", to_user_id).single();
+      await adminClient.from("notifications").insert({
+        user_id: caller.id,
+        title: "Transfer Successful",
+        message: `₹${parseFloat(amount).toLocaleString("en-IN")} transferred to ${receiverProfile?.full_name || "User"}. New balance: ₹${senderNewBalance.toLocaleString("en-IN")}.`,
+        type: "wallet_debit",
+        reference_type: "wallet",
+      });
+
       return new Response(JSON.stringify({
         success: true,
         sender_balance: senderNewBalance,
