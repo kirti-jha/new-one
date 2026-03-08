@@ -386,7 +386,7 @@ export default function DashboardUsers() {
   };
 
   const filtered = users.filter((u) => {
-    const q = search.toLowerCase();
+    const q = searchInput.toLowerCase();
     const matchesSearch = !q || u.full_name?.toLowerCase().includes(q) || u.phone?.toLowerCase().includes(q) ||
       u.business_name?.toLowerCase().includes(q) || u.role?.toLowerCase().includes(q);
     const matchesRole = filterRole === "all" || u.role === filterRole;
