@@ -473,17 +473,34 @@ export default function DashboardUsers() {
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {statsCards.map((stat) => (
-          <div key={stat.label} className="rounded-xl bg-gradient-card border border-border p-4 text-center">
-            <div className={`w-10 h-10 rounded-full ${stat.color} flex items-center justify-center mx-auto mb-2`}>
-              <stat.icon className="w-5 h-5" />
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+        {statsCards.map((stat) => {
+          const isActive = (stat.filterKey === "_active" && filterStatus === "active") ||
+            (stat.filterKey === "_deactivated" && filterStatus === "blocked") ||
+            (stat.filterKey !== "_active" && stat.filterKey !== "_deactivated" && filterRole === stat.filterKey && stat.filterKey !== "all");
+          return (
+            <div
+              key={stat.label}
+              onClick={() => {
+                if (stat.filterKey === "_active") {
+                  setFilterStatus(filterStatus === "active" ? "all" : "active");
+                } else if (stat.filterKey === "_deactivated") {
+                  setFilterStatus(filterStatus === "blocked" ? "all" : "blocked");
+                } else {
+                  handleCardClick(stat.filterKey);
+                }
+              }}
+              className={`rounded-xl bg-gradient-card border p-4 text-center cursor-pointer transition-all hover:shadow-md ${isActive ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+            >
+              <div className={`w-9 h-9 rounded-full ${stat.color} flex items-center justify-center mx-auto mb-2`}>
+                <stat.icon className="w-4 h-4" />
+              </div>
+              <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground leading-tight">{stat.label}</p>
+              <p className="text-xl font-heading font-bold text-foreground mt-1">{loading ? "..." : stat.value}</p>
+              {stat.sub && <p className="text-[10px] text-muted-foreground mt-0.5">{loading ? "..." : stat.sub}</p>}
             </div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{stat.label}</p>
-            <p className="text-2xl font-heading font-bold text-foreground mt-1">{loading ? "..." : stat.value}</p>
-            {stat.sub && <p className="text-xs text-muted-foreground mt-0.5">{loading ? "..." : stat.sub}</p>}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Search & Filter Bar */}
