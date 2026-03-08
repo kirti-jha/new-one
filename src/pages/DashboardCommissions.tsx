@@ -129,9 +129,21 @@ export default function CommissionsPage() {
             {isAdmin ? "Manage commission slabs across the hierarchy." : "View your commission earnings."}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => { fetchSlabs(); fetchLogs(); }}>
-          <RefreshCw className="w-4 h-4 mr-1" /> Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => { fetchSlabs(); fetchLogs(); }}>
+            <RefreshCw className="w-4 h-4 mr-1" /> Refresh
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => {
+            if (!logs.length) return;
+            downloadCSV(logs.map((l) => ({
+              Service: l.service_key, Txn_Amount: l.transaction_amount,
+              Commission: l.commission_amount, Type: l.commission_type,
+              Value: l.commission_value, Date: new Date(l.created_at).toLocaleString("en-IN"),
+            })), "commissions");
+          }}>
+            <Download className="w-4 h-4 mr-1" /> Export
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
