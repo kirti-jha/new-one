@@ -39,6 +39,7 @@ import DashboardPOS from "./pages/DashboardPOS";
 import DashboardSoundBox from "./pages/DashboardSoundBox";
 import DashboardReports from "./pages/DashboardReports";
 import DashboardServiceManagement from "./pages/DashboardServiceManagement";
+import DashboardStaffManagement from "./pages/DashboardStaffManagement";
 import ComingSoon from "./components/ComingSoon";
 import NotFound from "./pages/NotFound";
 
