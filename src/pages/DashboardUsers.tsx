@@ -454,20 +454,11 @@ export default function DashboardUsers() {
         )}
       </div>
 
-      {localStorage.getItem("impersonation_return_token") && (
+      {sessionStorage.getItem("impersonated_as") && (
         <div className="p-3 rounded-xl border border-warning/50 bg-warning/10 flex items-center justify-between">
-          <span className="text-sm text-foreground font-medium">⚠️ You are viewing as an impersonated user.</span>
-          <Button variant="outline" size="sm" onClick={async () => {
-            const token = localStorage.getItem("impersonation_return_token");
-            const refresh = localStorage.getItem("impersonation_return_refresh");
-            if (token && refresh) {
-              await supabase.auth.setSession({ access_token: token, refresh_token: refresh });
-              localStorage.removeItem("impersonation_return_token");
-              localStorage.removeItem("impersonation_return_refresh");
-              window.location.href = "/dashboard/users";
-            }
-          }}>
-            Return to Your Account
+          <span className="text-sm text-foreground font-medium">⚠️ You are viewing as: {sessionStorage.getItem("impersonated_as")}</span>
+          <Button variant="outline" size="sm" onClick={() => window.close()}>
+            Close This Tab
           </Button>
         </div>
       )}
