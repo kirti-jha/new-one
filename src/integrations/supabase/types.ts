@@ -14,6 +14,99 @@ export type Database = {
   }
   public: {
     Tables: {
+      commission_logs: {
+        Row: {
+          commission_amount: number
+          commission_type: string
+          commission_value: number
+          created_at: string
+          credited: boolean
+          id: string
+          service_key: string
+          slab_id: string | null
+          transaction_amount: number
+          user_id: string
+          wallet_txn_id: string | null
+        }
+        Insert: {
+          commission_amount: number
+          commission_type: string
+          commission_value: number
+          created_at?: string
+          credited?: boolean
+          id?: string
+          service_key: string
+          slab_id?: string | null
+          transaction_amount: number
+          user_id: string
+          wallet_txn_id?: string | null
+        }
+        Update: {
+          commission_amount?: number
+          commission_type?: string
+          commission_value?: number
+          created_at?: string
+          credited?: boolean
+          id?: string
+          service_key?: string
+          slab_id?: string | null
+          transaction_amount?: number
+          user_id?: string
+          wallet_txn_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_logs_slab_id_fkey"
+            columns: ["slab_id"]
+            isOneToOne: false
+            referencedRelation: "commission_slabs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_logs_wallet_txn_id_fkey"
+            columns: ["wallet_txn_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commission_slabs: {
+        Row: {
+          commission_type: string
+          commission_value: number
+          created_at: string
+          id: string
+          is_active: boolean
+          role: Database["public"]["Enums"]["app_role"]
+          service_key: string
+          service_label: string
+          updated_at: string
+        }
+        Insert: {
+          commission_type?: string
+          commission_value?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          role: Database["public"]["Enums"]["app_role"]
+          service_key: string
+          service_label: string
+          updated_at?: string
+        }
+        Update: {
+          commission_type?: string
+          commission_value?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          role?: Database["public"]["Enums"]["app_role"]
+          service_key?: string
+          service_label?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           business_name: string | null
