@@ -9,11 +9,10 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { apiFetch } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
 
-type AppRole = Database["public"]["Enums"]["app_role"];
+type AppRole = "admin" | "super_distributor" | "master_distributor" | "distributor" | "retailer";
 
 interface NavItem {
   label: string;
@@ -84,25 +83,20 @@ export default function DashboardSidebar({ onNavigate }: Props) {
   useEffect(() => {
     const fetchServices = async () => {
       if (!user) return;
-      const { data: services } = await supabase
-        .from("service_config")
-        .select("service_key, service_label, route_path, is_enabled")
-        .eq("is_enabled", true)
-        .order("service_label");
-      const { data: overrides } = await supabase
-        .from("user_service_overrides")
-        .select("service_key, is_enabled")
-        .eq("user_id", user.id);
-      const disabledKeys = new Set(
-        (overrides || []).filter((o: any) => !o.is_enabled).map((o: any) => o.service_key)
-      );
-      if (services) {
-        setServiceItems(services
-          .filter((s: any) => !disabledKeys.has(s.service_key))
-          .map((s: any) => ({
-            label: s.service_label, icon: ICON_MAP[s.service_key] || Box,
-            path: s.route_path, section: "Services", serviceKey: s.service_key,
-          })));
+      try {
+        const services = await apiFetch("/users/services");
+        if (services) {
+          const items = services.map((s: any) => ({
+            label: s.serviceLabel,
+            icon: ICON_MAP[s.serviceKey] || Zap,
+            path: s.routePath,
+            serviceKey: s.serviceKey,
+            section: "Services",
+          }));
+          setServiceItems(items);
+        }
+      } catch (err) {
+        console.error("Error fetching services for sidebar:", err);
       }
     };
     fetchServices();
@@ -157,10 +151,11 @@ export default function DashboardSidebar({ onNavigate }: Props) {
   return (
     <aside className={cn("h-screen sticky top-0 flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300", collapsed ? "w-[68px]" : "w-[250px]")}>
       <div className="flex items-center gap-2 px-4 h-16 border-b border-sidebar-border shrink-0">
-        <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center shrink-0">
-          <Zap className="w-5 h-5 text-primary-foreground" />
-        </div>
-        {!collapsed && <span className="font-heading text-lg font-bold text-foreground">Abheepay</span>}
+        <img
+          src="https://pos.abheepay.com/assets/FORMAT-PNG-Lj3U1uY2.png"
+          alt="ABHEEPAY"
+          className={cn("h-10 w-auto transition-all", collapsed ? "mx-auto" : "")}
+        />
       </div>
 
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">

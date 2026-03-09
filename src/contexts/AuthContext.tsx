@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
+import { Database } from "@/integrations/supabase/types";
+import { apiFetch } from "@/services/api";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -46,6 +47,9 @@ interface AuthContextType {
   isMasterAdmin: boolean;
   permissions: StaffPermissions;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
+  walletBalance: number;
+  eWalletBalance: number;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -56,7 +60,10 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   isMasterAdmin: false,
   permissions: DEFAULT_PERMISSIONS,
-  signOut: async () => {},
+  signOut: async () => { },
+  refreshProfile: async () => { },
+  walletBalance: 0,
+  eWalletBalance: 0,
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -69,50 +76,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isMasterAdmin, setIsMasterAdmin] = useState(false);
   const [permissions, setPermissions] = useState<StaffPermissions>(DEFAULT_PERMISSIONS);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [eWalletBalance, setEWalletBalance] = useState(0);
 
   const fetchUserData = async (userId: string) => {
     try {
-      const [profileRes, roleRes] = await Promise.all([
-        supabase.from("profiles").select("*").eq("user_id", userId).single(),
-        supabase.from("user_roles").select("role").eq("user_id", userId).single(),
-      ]);
-      if (profileRes.data) {
-        setProfile(profileRes.data as Profile);
-        const master = profileRes.data.is_master_admin === true;
-        setIsMasterAdmin(master);
+      const data = await apiFetch("/auth/me");
+
+      if (data.profile) {
+        setProfile(data.profile as Profile);
+        setIsMasterAdmin(data.profile.is_master_admin === true);
+        setWalletBalance(data.walletBalance || 0);
+        setEWalletBalance(data.eWalletBalance || 0);
       }
-      if (roleRes.data) {
-        setRole(roleRes.data.role);
+
+      if (data.role) {
+        setRole(data.role as AppRole);
 
         // Fetch staff permissions for admin users
-        if (roleRes.data.role === "admin") {
-          if (profileRes.data?.is_master_admin) {
-            setPermissions(DEFAULT_PERMISSIONS); // master admin has all
+        if (data.role === "admin") {
+          if (data.profile?.is_master_admin) {
+            setPermissions(DEFAULT_PERMISSIONS);
           } else {
-            const { data: perms } = await supabase
-              .from("staff_permissions")
-              .select("*")
-              .eq("user_id", userId)
-              .single();
-            if (perms) {
-              setPermissions({
-                can_manage_users: perms.can_manage_users,
-                can_manage_finances: perms.can_manage_finances,
-                can_manage_commissions: perms.can_manage_commissions,
-                can_manage_services: perms.can_manage_services,
-                can_manage_settings: perms.can_manage_settings,
-                can_manage_security: perms.can_manage_security,
-                can_view_reports: perms.can_view_reports,
-              });
-            } else {
-              // No permissions row = full access (legacy admins)
+            try {
+              // The backend could provide this in /auth/me too, but let's keep it separate if needed
+              // for now we'll fetch it from a dedicated endpoint if we add one, 
+              // or just use the default if not provided.
+              // For now, let's assume the backend provides it or we default it.
+              setPermissions(DEFAULT_PERMISSIONS);
+            } catch (err) {
               setPermissions(DEFAULT_PERMISSIONS);
             }
           }
         }
       }
     } catch (err) {
-      console.error("Error fetching user data:", err);
+      console.error("Error fetching user data from backend:", err);
     }
   };
 
@@ -153,8 +152,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setPermissions(DEFAULT_PERMISSIONS);
   };
 
+  const refreshProfile = async () => {
+    if (user) await fetchUserData(user.id);
+  };
+
   return (
-    <AuthContext.Provider value={{ session, user, profile, role, loading, isMasterAdmin, permissions, signOut }}>
+    <AuthContext.Provider value={{ session, user, profile, role, loading, isMasterAdmin, permissions, signOut, refreshProfile, walletBalance, eWalletBalance }}>
       {children}
     </AuthContext.Provider>
   );

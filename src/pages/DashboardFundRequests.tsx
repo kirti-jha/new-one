@@ -18,9 +18,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { downloadCSV } from "@/lib/csv-export";
-import type { Database } from "@/integrations/supabase/types";
+import { apiFetch } from "@/services/api";
 
-type AppRole = Database["public"]["Enums"]["app_role"];
+type AppRole = "admin" | "super_distributor" | "master_distributor" | "distributor" | "retailer";
 
 const ROLE_LEVEL: Record<string, number> = {
   admin: 1, super_distributor: 2, master_distributor: 3, distributor: 4, retailer: 5,
@@ -106,44 +106,58 @@ export default function DashboardFundRequests() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
 
+  const sendNotification = async (userId: string, title: string, message: string, type: string = "info") => {
+    await supabase.from("notifications").insert({ user_id: userId, title, message, type });
+  };
+
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [{ data: reqs }, { data: banks }, { data: profiles }, { data: roles }] = await Promise.all([
-      supabase.from("fund_requests").select("*").order("created_at", { ascending: false }).limit(100),
-      supabase.from("company_bank_accounts").select("*"),
-      supabase.from("profiles").select("user_id, full_name"),
-      supabase.from("user_roles").select("user_id, role"),
-    ]);
+    try {
+      const [reqData, bankData] = await Promise.all([
+        apiFetch("/fund-requests"),
+        apiFetch("/fund-requests/bank-accounts"),
+      ]);
 
-    if (banks) setBankAccounts(banks as BankAccount[]);
-
-    if (reqs && profiles && roles) {
-      const nameMap = new Map((profiles || []).map((p: any) => [p.user_id, p.full_name]));
-      const roleMap = new Map((roles || []).map((r: any) => [r.user_id, r.role]));
-      const bankMap = new Map((banks || []).map((b: any) => [b.id, b.bank_name]));
-
-      setRequests((reqs as any[]).map((r) => ({
-        ...r,
-        requester_name: nameMap.get(r.requester_id) || "Unknown",
-        requester_role: roleMap.get(r.requester_id) || "—",
-        bank_name: bankMap.get(r.bank_account_id) || "—",
-        approver_name: r.approved_by ? nameMap.get(r.approved_by) || "—" : null,
-      })));
+      if (reqData) {
+        setRequests(reqData.map((r: any) => ({
+          ...r,
+          id: r.id,
+          requester_id: r.requesterId,
+          bank_account_id: r.bankAccountId,
+          payment_mode: r.paymentMode,
+          payment_reference: r.paymentReference,
+          payment_date: r.paymentDate,
+          receipt_path: r.receiptPath,
+          receipt_name: r.receiptName,
+          status: r.status,
+          approved_by: r.approvedBy,
+          approved_at: r.approvedAt,
+          rejection_reason: r.rejectionReason,
+          created_at: r.createdAt,
+          requester_name: r.requesterName,
+          requester_role: r.requesterRole,
+          bank_name: r.bankName,
+          approver_name: r.approverName,
+        })));
+      }
+      if (bankData) {
+        setBankAccounts(bankData.map((a: any) => ({
+          id: a.id,
+          bank_name: a.bankName,
+          account_name: a.accountName,
+          account_number: a.accountNumber,
+          ifsc_code: a.ifscCode,
+          upi_id: a.upiId,
+        })));
+      }
+    } catch (err: any) {
+      toast({ title: "Fetch Error", description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
-
-  // Realtime
-  useEffect(() => {
-    if (!user) return;
-    const channel = supabase
-      .channel("fund-requests")
-      .on("postgres_changes", { event: "*", schema: "public", table: "fund_requests" }, () => fetchData())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [user, fetchData]);
 
   const handleSubmitRequest = async () => {
     if (!reqBank || !reqAmount || parseFloat(reqAmount) <= 0 || !reqRef || !reqDate || !user) {
@@ -165,23 +179,26 @@ export default function DashboardFundRequests() {
         receiptName = reqReceipt.name;
       }
 
-      const { error } = await supabase.from("fund_requests").insert({
-        requester_id: user.id,
-        bank_account_id: reqBank,
-        amount: parseFloat(reqAmount),
-        payment_mode: reqMode,
-        payment_reference: reqRef.trim(),
-        payment_date: reqDate,
-        receipt_path: receiptPath,
-        receipt_name: receiptName,
-        remarks: reqRemarks.trim() || null,
+      const res = await apiFetch("/fund-requests", {
+        method: "POST",
+        body: JSON.stringify({
+          bank_account_id: reqBank,
+          amount: parseFloat(reqAmount),
+          payment_mode: reqMode,
+          payment_reference: reqRef.trim(),
+          payment_date: reqDate,
+          receipt_path: receiptPath,
+          receipt_name: receiptName,
+          remarks: reqRemarks.trim() || null,
+        }),
       });
-      if (error) throw error;
 
       toast({ title: "Fund request submitted", description: "Your request is pending approval." });
       setRequestOpen(false);
       setReqBank(""); setReqAmount(""); setReqMode("bank_transfer"); setReqRef(""); setReqRemarks(""); setReqReceipt(null);
       fetchData();
+
+      // Notifications are now handled by the backend
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -193,18 +210,37 @@ export default function DashboardFundRequests() {
     if (!reviewReq) return;
     setReviewing(true);
     try {
-      const res = await supabase.functions.invoke("approve-fund-request", {
-        body: {
-          action,
-          request_id: reviewReq.id,
-          rejection_reason: action === "reject" ? rejectionReason : undefined,
-        },
+      const endpoint = action === "approve"
+        ? `/fund-requests/${reviewReq.id}/approve`
+        : `/fund-requests/${reviewReq.id}/reject`;
+
+      const res = await apiFetch(endpoint, {
+        method: "PATCH",
+        body: action === "reject" ? JSON.stringify({ reason: rejectionReason }) : undefined,
       });
-      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
       toast({ title: action === "approve" ? "Request approved & funds credited" : "Request rejected" });
       setReviewOpen(false);
       setRejectionReason("");
       fetchData();
+
+      // Notify the requester about the outcome
+      if (reviewReq) {
+        const { data: requesterProfile } = await supabase
+          .from("profiles")
+          .select("user_id")
+          .eq("user_id", reviewReq.requester_id)
+          .single();
+        if (requesterProfile) {
+          await sendNotification(
+            requesterProfile.user_id,
+            action === "approve" ? "Fund Request Approved ✅" : "Fund Request Rejected ❌",
+            action === "approve"
+              ? `Your fund request of ₹${Number(reviewReq.amount).toLocaleString("en-IN")} has been approved and credited to your wallet.`
+              : `Your fund request of ₹${Number(reviewReq.amount).toLocaleString("en-IN")} was rejected. Reason: ${rejectionReason || "Not specified"}.`,
+            "fund_request"
+          );
+        }
+      }
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {

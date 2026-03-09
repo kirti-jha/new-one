@@ -69,51 +69,47 @@ export default function NotificationBell() {
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(30);
-    if (data) setNotifications(data as Notification[]);
+    try {
+      const data = await apiFetch("/notifications");
+      if (data) {
+        setNotifications(data.map((n: any) => ({
+          ...n,
+          id: n.id,
+          is_read: n.isRead,
+          reference_id: n.referenceId,
+          reference_type: n.referenceType,
+          created_at: n.createdAt,
+        })));
+      }
+    } catch (err) {
+      console.error("Error fetching notifications:", err);
+    }
   }, [user]);
 
   useEffect(() => {
     fetchNotifications();
+    // Poll for new notifications every 30 seconds as a simple replacement for realtime for now
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
   }, [fetchNotifications]);
 
-  // Realtime subscription
-  useEffect(() => {
-    if (!user) return;
-    const channel = supabase
-      .channel("notifications-realtime")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          setNotifications((prev) => [payload.new as Notification, ...prev].slice(0, 30));
-        }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [user]);
-
   const markAsRead = async (id: string) => {
-    await supabase.from("notifications").update({ is_read: true }).eq("id", id);
-    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, is_read: true } : n));
+    try {
+      await apiFetch(`/notifications/${id}/read`, { method: "PATCH" });
+      setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, is_read: true } : n));
+    } catch (err) {
+      console.error("Error marking notification as read:", err);
+    }
   };
 
   const markAllRead = async () => {
     if (!user) return;
-    const unreadIds = notifications.filter((n) => !n.is_read).map((n) => n.id);
-    if (unreadIds.length === 0) return;
-    await supabase.from("notifications").update({ is_read: true }).in("id", unreadIds);
-    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    try {
+      await apiFetch("/notifications/read-all", { method: "PATCH" });
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    } catch (err) {
+      console.error("Error marking all as read:", err);
+    }
   };
 
   return (

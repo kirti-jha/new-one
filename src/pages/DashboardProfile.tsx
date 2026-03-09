@@ -30,7 +30,7 @@ const kycStatusConfig: Record<string, { icon: typeof CheckCircle2; label: string
 };
 
 export default function DashboardProfile() {
-  const { user, profile, role } = useAuth();
+  const { user, profile, role, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -113,8 +113,21 @@ export default function DashboardProfile() {
     if (error) {
       toast({ title: "Error saving", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Profile updated!" });
+      toast({ title: "Profile updated!", description: "Your profile has been saved successfully." });
       setEditing(false);
+      // Refresh AuthContext so the top-right header also updates
+      await refreshProfile();
+      // Also re-fetch local state from DB for confirmed values
+      const { data: p } = await supabase.from("profiles").select("*").eq("user_id", user.id).single();
+      if (p) {
+        setFullName(p.full_name || "");
+        setPhone(p.phone || "");
+        setBusinessName(p.business_name || "");
+        setBankName(p.bank_name || "");
+        setBankAcct(p.bank_account_number || "");
+        setBankIfsc(p.bank_ifsc || "");
+        setBankHolder(p.bank_account_holder || "");
+      }
     }
   };
 

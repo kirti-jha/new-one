@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { downloadCSV } from "@/lib/csv-export";
+import { apiFetch } from "@/services/api";
 import type { Database } from "@/integrations/supabase/types";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
@@ -97,52 +98,58 @@ export default function DashboardWallet() {
   const [bankDesc, setBankDesc] = useState("");
 
   const fetchWallet = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("wallets")
-      .select("balance, e_wallet_balance")
-      .eq("user_id", user.id)
-      .single();
-    if (data) setWallet({ balance: parseFloat(data.balance as any), e_wallet_balance: parseFloat((data as any).e_wallet_balance as any) });
-  }, [user]);
+    try {
+      const data = await apiFetch("/wallet");
+      if (data) {
+        setWallet({
+          balance: data.balance,
+          e_wallet_balance: data.eWalletBalance,
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching wallet:", err);
+    }
+  }, []);
 
   const fetchTransactions = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("wallet_transactions")
-      .select("*")
-      .or(`from_user_id.eq.${user.id},to_user_id.eq.${user.id}`)
-      .order("created_at", { ascending: false })
-      .limit(50);
-    if (data) setTransactions(data as TxnRow[]);
-  }, [user]);
+    try {
+      const data = await apiFetch("/wallet/transactions");
+      if (data) {
+        setTransactions(data.map((t: any) => ({
+          ...t,
+          from_user_id: t.fromUserId,
+          to_user_id: t.toUserId,
+          from_balance_after: t.fromBalanceAfter,
+          to_balance_after: t.toBalanceAfter,
+          created_at: t.createdAt,
+        })));
+      }
+    } catch (err) {
+      console.error("Error fetching transactions:", err);
+    }
+  }, []);
 
   const fetchEWalletCredits = useCallback(async () => {
-    if (!user || isAdmin) return;
-    const { data } = await supabase
-      .from("e_wallet_credits")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(50);
-    if (data) setEWalletCredits(data as EWalletCredit[]);
-  }, [user, isAdmin]);
+    if (isAdmin) return;
+    try {
+      const data = await apiFetch("/wallet/e-wallet-credits");
+      if (data) setEWalletCredits(data);
+    } catch (err) {
+      console.error("Error fetching e-wallet credits:", err);
+    }
+  }, [isAdmin]);
 
   const fetchDownlineUsers = useCallback(async () => {
-    if (!user) return;
-    const { data: profiles } = await supabase.from("profiles").select("user_id, full_name");
-    const { data: roles } = await supabase.from("user_roles").select("user_id, role");
-    if (profiles && roles) {
-      const roleMap = new Map(roles.map((r) => [r.user_id, r.role as AppRole]));
-      const list: DownlineUser[] = profiles
-        .filter((p) => p.user_id !== user.id && roleMap.has(p.user_id))
-        .map((p) => ({ user_id: p.user_id, full_name: p.full_name, role: roleMap.get(p.user_id)! }));
-      setAllUsers(list);
-      const ROLE_LEVEL: Record<AppRole, number> = { admin: 1, super_distributor: 2, master_distributor: 3, distributor: 4, retailer: 5 };
-      const myLevel = role ? ROLE_LEVEL[role] : 99;
-      setDownlineUsers(list.filter((u) => ROLE_LEVEL[u.role] > myLevel));
+    try {
+      const data = await apiFetch("/users/downline");
+      if (data) {
+        setAllUsers(data);
+        setDownlineUsers(data); // Backend already filters for downline
+      }
+    } catch (err) {
+      console.error("Error fetching downline users:", err);
     }
-  }, [user, role]);
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -153,19 +160,7 @@ export default function DashboardWallet() {
     load();
   }, [fetchWallet, fetchTransactions, fetchEWalletCredits, fetchDownlineUsers]);
 
-  useEffect(() => {
-    if (!user) return;
-    const channel = supabase
-      .channel("wallet-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "wallets", filter: `user_id=eq.${user.id}` }, () => {
-        fetchWallet();
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "wallet_transactions" }, () => {
-        fetchTransactions();
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [user, fetchWallet, fetchTransactions]);
+  // Realtime removed, switching to refresh after actions
 
   const handleTopUp = async () => {
     if (!topUpTarget || !topUpAmount || parseFloat(topUpAmount) <= 0) {
@@ -174,10 +169,10 @@ export default function DashboardWallet() {
     }
     setProcessing(true);
     try {
-      const res = await supabase.functions.invoke("wallet-transfer", {
-        body: { action: "top_up", to_user_id: topUpTarget, amount: parseFloat(topUpAmount), description: topUpDesc || "Admin top-up" },
+      await apiFetch("/wallet/top-up", {
+        method: "POST",
+        body: JSON.stringify({ to_user_id: topUpTarget, amount: parseFloat(topUpAmount), description: topUpDesc || "Admin top-up" }),
       });
-      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
       toast({ title: "Top-up successful", description: `₹${parseFloat(topUpAmount).toLocaleString("en-IN")} added.` });
       setTopUpOpen(false);
       setTopUpTarget(""); setTopUpAmount(""); setTopUpDesc("");
@@ -196,10 +191,10 @@ export default function DashboardWallet() {
     }
     setProcessing(true);
     try {
-      const res = await supabase.functions.invoke("wallet-transfer", {
-        body: { action: "transfer", to_user_id: transferTarget, amount: parseFloat(transferAmount), description: transferDesc || "Fund transfer" },
+      await apiFetch("/wallet/transfer", {
+        method: "POST",
+        body: JSON.stringify({ to_user_id: transferTarget, amount: parseFloat(transferAmount), description: transferDesc || "Fund transfer" }),
       });
-      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
       toast({ title: "Transfer successful", description: `₹${parseFloat(transferAmount).toLocaleString("en-IN")} transferred.` });
       setTransferOpen(false);
       setTransferTarget(""); setTransferAmount(""); setTransferDesc("");
@@ -218,12 +213,11 @@ export default function DashboardWallet() {
       return;
     }
     setProcessing(true);
-    // Simulated PG: add to main wallet after "payment"
     try {
-      const res = await supabase.functions.invoke("wallet-transfer", {
-        body: { action: "pg_add_fund", amount: amt },
+      await apiFetch("/wallet/pg-add", {
+        method: "POST",
+        body: JSON.stringify({ amount: amt }),
       });
-      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
       toast({ title: "Payment Successful!", description: `₹${amt.toLocaleString("en-IN")} added to your Main Wallet via PG.` });
       setPgOpen(false);
       setPgAmount("");
@@ -243,10 +237,10 @@ export default function DashboardWallet() {
     }
     setProcessing(true);
     try {
-      const res = await supabase.functions.invoke("wallet-transfer", {
-        body: { action: "admin_bank_topup", amount: amt, bank_reference: bankRef.trim(), bank_name: bankName.trim(), description: bankDesc.trim() },
+      await apiFetch("/wallet/bank-topup", {
+        method: "POST",
+        body: JSON.stringify({ amount: amt, bank_reference: bankRef.trim(), bank_name: bankName.trim(), description: bankDesc.trim() }),
       });
-      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
       toast({ title: "Bank Deposit Recorded", description: `₹${amt.toLocaleString("en-IN")} added to your wallet.` });
       setBankDepositOpen(false);
       setBankAmount(""); setBankRef(""); setBankName(""); setBankDesc("");

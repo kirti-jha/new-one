@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { apiFetch } from "@/services/api";
 
 interface Ticket {
   id: string;
@@ -66,77 +67,77 @@ export default function DashboardSupport() {
 
   const fetchTickets = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("support_tickets")
-      .select("*")
-      .order("created_at", { ascending: false });
-    setTickets((data as Ticket[]) || []);
-    setLoading(false);
+    try {
+      const data = await apiFetch("/support/tickets");
+      if (data) {
+        setTickets(data.map((t: any) => ({
+          ...t,
+          admin_reply: t.adminReply,
+          replied_by: t.repliedBy,
+          replied_at: t.repliedAt,
+          created_at: t.createdAt,
+          user_id: t.userId,
+        })));
+      }
+    } catch (err) {
+      console.error("Error fetching tickets:", err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchTickets(); }, [fetchTickets]);
 
-  // Realtime subscription
-  useEffect(() => {
-    const channel = supabase
-      .channel("support_tickets_realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "support_tickets" }, () => {
-        fetchTickets();
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [fetchTickets]);
+  // Removed direct sendNotification as it's now handled by the backend
 
   const handleSubmit = async () => {
     if (!subject.trim() || !message.trim()) {
       toast({ title: "Missing fields", description: "Please fill subject and message.", variant: "destructive" });
       return;
     }
-    if (subject.trim().length > 200) {
-      toast({ title: "Subject too long", description: "Max 200 characters.", variant: "destructive" });
-      return;
-    }
-    if (message.trim().length > 2000) {
-      toast({ title: "Message too long", description: "Max 2000 characters.", variant: "destructive" });
-      return;
-    }
     setSubmitting(true);
-    const { error } = await supabase.from("support_tickets").insert({
-      user_id: user!.id,
-      subject: subject.trim(),
-      message: message.trim(),
-      category,
-    });
-    setSubmitting(false);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
+    try {
+      await apiFetch("/support/tickets", {
+        method: "POST",
+        body: JSON.stringify({
+          subject: subject.trim(),
+          message: message.trim(),
+          category,
+        }),
+      });
       toast({ title: "Ticket submitted!", description: "Our team will respond shortly." });
       setCreateOpen(false);
       setSubject("");
       setMessage("");
       setCategory("general");
+      fetchTickets();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleAdminReply = async () => {
     if (!viewTicket || !replyText.trim()) return;
     setReplying(true);
-    const updates: Record<string, any> = {
-      admin_reply: replyText.trim(),
-      replied_by: user!.id,
-      replied_at: new Date().toISOString(),
-    };
-    if (replyStatus) updates.status = replyStatus;
-    const { error } = await supabase.from("support_tickets").update(updates).eq("id", viewTicket.id);
-    setReplying(false);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
+    try {
+      await apiFetch(`/support/tickets/${viewTicket.id}/reply`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          reply_text: replyText.trim(),
+          status: replyStatus,
+        }),
+      });
       toast({ title: "Reply sent!" });
       setReplyText("");
       setReplyStatus("");
       setViewTicket(null);
+      fetchTickets();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setReplying(false);
     }
   };
 

@@ -269,11 +269,12 @@ export default function LoginPage() {
       <div className="bg-gradient-glow fixed inset-0 pointer-events-none" />
       <div className="w-full max-w-md relative">
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center">
-              <Zap className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <span className="font-heading text-2xl font-bold text-foreground">Abheepay</span>
+          <Link to="/" className="inline-flex items-center mb-4">
+            <img
+              src="https://pos.abheepay.com/assets/FORMAT-PNG-Lj3U1uY2.png"
+              alt="ABHEEPAY"
+              className="h-12 w-auto"
+            />
           </Link>
           <p className="text-muted-foreground text-sm">
             {forgotStep === "idle" ? "Sign in to your account" : "Reset your password"}

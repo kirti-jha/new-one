@@ -55,8 +55,8 @@ export default function AdminOverview({ name }: { name: string }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-heading font-bold text-foreground">Admin Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-1">Welcome back, {name}. Full platform overview.</p>
+        <h1 className="text-2xl font-heading font-bold text-foreground">Welcome, {name}!</h1>
+        <p className="text-sm text-muted-foreground mt-1">Full platform overview.</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

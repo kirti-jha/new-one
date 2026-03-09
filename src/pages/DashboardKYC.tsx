@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { apiFetch } from "@/services/api";
 
 const DOC_TYPES = [
   { value: "aadhaar", label: "Aadhaar Card" },
@@ -80,31 +81,27 @@ export default function KYCPage() {
 
   const fetchDocs = useCallback(async () => {
     setLoading(true);
-    const { data: kycDocs } = await supabase
-      .from("kyc_documents")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (kycDocs) {
-      // Enrich with user names
-      const userIds = [...new Set(kycDocs.map((d: any) => d.user_id))];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("user_id, full_name");
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("user_id, role");
-
-      const nameMap = new Map((profiles || []).map((p: any) => [p.user_id, p.full_name]));
-      const roleMap = new Map((roles || []).map((r: any) => [r.user_id, r.role]));
-
-      setDocs(kycDocs.map((d: any) => ({
-        ...d,
-        user_name: nameMap.get(d.user_id) || "Unknown",
-        user_role: roleMap.get(d.user_id) || "—",
-      })));
+    try {
+      const data = await apiFetch("/kyc");
+      if (data) {
+        setDocs(data.map((d: any) => ({
+          ...d,
+          user_id: d.userId,
+          doc_type: d.docType,
+          file_path: d.filePath,
+          file_name: d.fileName,
+          review_note: d.reviewNote,
+          reviewed_by: d.reviewedBy,
+          reviewed_at: d.reviewedAt,
+          created_at: d.createdAt,
+          updated_at: d.updatedAt,
+        })));
+      }
+    } catch (err) {
+      console.error("Error fetching KYC docs:", err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => { fetchDocs(); }, [fetchDocs]);
@@ -129,13 +126,15 @@ export default function KYCPage() {
         .upload(filePath, uploadFile);
       if (storageErr) throw storageErr;
 
-      const { error: dbErr } = await supabase.from("kyc_documents").insert({
-        user_id: user.id,
-        doc_type: uploadType,
-        file_path: filePath,
-        file_name: uploadFile.name,
+      // Meta record in Neon
+      await apiFetch("/kyc", {
+        method: "POST",
+        body: JSON.stringify({
+          doc_type: uploadType,
+          file_path: filePath,
+          file_name: uploadFile.name,
+        }),
       });
-      if (dbErr) throw dbErr;
 
       toast({ title: "Document uploaded", description: "Your KYC document is pending review." });
       setUploadOpen(false);
@@ -153,33 +152,10 @@ export default function KYCPage() {
     if (!reviewDoc || !user) return;
     setReviewing(true);
     try {
-      const { error } = await supabase
-        .from("kyc_documents")
-        .update({
-          status: action,
-          review_note: reviewNote || null,
-          reviewed_by: user.id,
-          reviewed_at: new Date().toISOString(),
-        })
-        .eq("id", reviewDoc.id);
-      if (error) throw error;
-
-      // Update profile kyc_status if all docs approved
-      const { data: userDocs } = await supabase
-        .from("kyc_documents")
-        .select("status")
-        .eq("user_id", reviewDoc.user_id);
-
-      if (userDocs) {
-        const allApproved = userDocs.every((d: any) => d.status === "approved" || d.id === reviewDoc.id && action === "approved");
-        const anyRejected = userDocs.some((d: any) => d.status === "rejected" || d.id === reviewDoc.id && action === "rejected");
-        const newKycStatus = anyRejected ? "rejected" : allApproved ? "verified" : "pending";
-
-        await supabase
-          .from("profiles")
-          .update({ kyc_status: newKycStatus })
-          .eq("user_id", reviewDoc.user_id);
-      }
+      await apiFetch(`/kyc/${reviewDoc.id}/review`, {
+        method: "PATCH",
+        body: JSON.stringify({ action, note: reviewNote }),
+      });
 
       toast({ title: action === "approved" ? "Document approved" : "Document rejected" });
       setReviewOpen(false);

@@ -13,9 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { downloadCSV } from "@/lib/csv-export";
-import type { Database } from "@/integrations/supabase/types";
+import { apiFetch } from "@/services/api";
 
-type AppRole = Database["public"]["Enums"]["app_role"];
+type AppRole = "admin" | "super_distributor" | "master_distributor" | "distributor" | "retailer";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   admin: "Admin",
@@ -109,73 +109,80 @@ export default function CommissionsPage() {
   const [eoChargeValue, setEoChargeValue] = useState("");
 
   const fetchSlabs = useCallback(async () => {
-    const { data } = await supabase
-      .from("commission_slabs")
-      .select("*")
-      .eq("is_active", true)
-      .order("service_key")
-      .order("role");
-    if (data) setSlabs(data as Slab[]);
+    try {
+      const data = await apiFetch("/commission/slabs");
+      if (data) {
+        setSlabs(data.map((s: any) => ({
+          ...s,
+          service_key: s.serviceKey,
+          service_label: s.serviceLabel,
+          commission_type: s.commissionType,
+          commission_value: Number(s.commissionValue),
+          is_active: s.isActive,
+        })));
+      }
+    } catch (err) {
+      console.error("Error fetching slabs:", err);
+    }
   }, []);
 
   const fetchLogs = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("commission_logs")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(50);
-    if (data) setLogs(data as CommissionLog[]);
+    try {
+      const data = await apiFetch("/commission/logs");
+      if (data) {
+        setLogs(data.map((l: any) => ({
+          ...l,
+          service_key: l.serviceKey,
+          transaction_amount: Number(l.transactionAmount),
+          commission_amount: Number(l.commissionAmount),
+          commission_type: l.commissionType,
+          commission_value: Number(l.commissionValue),
+          created_at: l.createdAt,
+        })));
+      }
+    } catch (err) {
+      console.error("Error fetching logs:", err);
+    }
   }, [user]);
 
   const fetchOverrides = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("user_commission_overrides")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (data) {
-      // Fetch target user names
-      const targetIds = [...new Set(data.map((o: any) => o.target_user_id))];
-      let nameMap: Record<string, string> = {};
-      if (targetIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("user_id, full_name")
-          .in("user_id", targetIds);
-        if (profiles) {
-          nameMap = Object.fromEntries(profiles.map((p: any) => [p.user_id, p.full_name]));
-        }
+    try {
+      const data = await apiFetch("/commission/overrides");
+      if (data) {
+        setOverrides(data);
       }
-      setOverrides(data.map((o: any) => ({ ...o, target_name: nameMap[o.target_user_id] || o.target_user_id })));
+    } catch (err) {
+      console.error("Error fetching overrides:", err);
     }
   }, [user]);
 
   const fetchDownlineUsers = useCallback(async () => {
     if (!user || !canManageDownline) return;
-    const { data: profiles } = await supabase.from("profiles").select("user_id, full_name");
-    const { data: roles } = await supabase.from("user_roles").select("user_id, role");
-    if (profiles && roles) {
-      const roleMap = new Map(roles.map((r: any) => [r.user_id, r.role]));
-      const myLevel = role ? ROLE_LEVEL[role] : 99;
-      const dl = profiles
-        .filter((p: any) => p.user_id !== user.id)
-        .filter((p: any) => {
-          const uRole = roleMap.get(p.user_id);
-          return uRole && ROLE_LEVEL[uRole as AppRole] > myLevel;
-        })
-        .map((p: any) => ({ user_id: p.user_id, full_name: p.full_name, role: roleMap.get(p.user_id) as AppRole }));
-      setDownlineUsers(dl);
+    try {
+      // Use existing /users endpoint which handles hierarchy for non-admins
+      const data = await apiFetch("/users");
+      if (data) {
+        const dl = data
+          .filter((u: any) => u.userId !== user.id)
+          .map((u: any) => ({ user_id: u.userId, full_name: u.fullName, role: u.role }));
+        setDownlineUsers(dl);
+      }
+    } catch (err) {
+      console.error("Error fetching downline users:", err);
     }
-  }, [user, role, canManageDownline]);
+  }, [user, canManageDownline]);
 
   const fetchServices = useCallback(async () => {
-    const { data } = await supabase
-      .from("service_config")
-      .select("service_key, service_label")
-      .eq("is_enabled", true)
-      .order("service_label");
-    if (data) setServices(data.map((s: any) => ({ key: s.service_key, label: s.service_label })));
+    try {
+      const data = await apiFetch("/users/services");
+      if (data) {
+        setServices(data.map((s: any) => ({ key: s.service_key, label: s.service_label })));
+      }
+    } catch (err) {
+      console.error("Error fetching services:", err);
+    }
   }, []);
 
   useEffect(() => {
@@ -199,16 +206,16 @@ export default function CommissionsPage() {
       toast({ title: "Invalid value", variant: "destructive" });
       return;
     }
-    const { error } = await supabase
-      .from("commission_slabs")
-      .update({ commission_value: val, commission_type: editType })
-      .eq("id", slab.id);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
+    try {
+      await apiFetch(`/commission/slabs/${slab.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ commission_value: val, commission_type: editType }),
+      });
       toast({ title: "Slab updated" });
       setEditingId(null);
       fetchSlabs();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     }
   };
 
@@ -228,10 +235,9 @@ export default function CommissionsPage() {
 
     setOSaving(true);
     try {
-      const { error } = await supabase
-        .from("user_commission_overrides")
-        .upsert({
-          set_by: user.id,
+      await apiFetch("/commission/overrides", {
+        method: "POST",
+        body: JSON.stringify({
           target_user_id: oTargetUser,
           service_key: oServiceKey,
           service_label: svcLabel,
@@ -239,9 +245,8 @@ export default function CommissionsPage() {
           commission_value: commVal,
           charge_type: oChargeType,
           charge_value: chargeVal,
-          is_active: true,
-        }, { onConflict: "target_user_id,service_key" });
-      if (error) throw error;
+        }),
+      });
       toast({ title: "Commission/Charge saved" });
       setOverrideOpen(false);
       fetchOverrides();
@@ -255,23 +260,34 @@ export default function CommissionsPage() {
   const handleUpdateOverride = async (o: UserOverride) => {
     const commVal = parseFloat(eoCommValue) || 0;
     const chargeVal = parseFloat(eoChargeValue) || 0;
-    const { error } = await supabase
-      .from("user_commission_overrides")
-      .update({ commission_type: eoCommType, commission_value: commVal, charge_type: eoChargeType, charge_value: chargeVal })
-      .eq("id", o.id);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
+    try {
+      await apiFetch(`/commission/overrides/${o.id}`, {
+        method: "POST", // Backend handles upsert on POST, or I could add a PATCH
+        body: JSON.stringify({
+          target_user_id: o.target_user_id,
+          service_key: o.service_key,
+          commission_type: eoCommType,
+          commission_value: commVal,
+          charge_type: eoChargeType,
+          charge_value: chargeVal,
+        }),
+      });
       toast({ title: "Updated" });
       setEditingOverrideId(null);
       fetchOverrides();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     }
   };
 
   const handleDeleteOverride = async (id: string) => {
-    const { error } = await supabase.from("user_commission_overrides").delete().eq("id", id);
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else { toast({ title: "Removed" }); fetchOverrides(); }
+    try {
+      await apiFetch(`/commission/overrides/${id}`, { method: "DELETE" });
+      toast({ title: "Removed" });
+      fetchOverrides();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
   };
 
   const totalEarned = logs.reduce((s, l) => s + Number(l.commission_amount), 0);

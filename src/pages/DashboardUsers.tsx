@@ -14,13 +14,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { apiFetch } from "@/services/api";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useToast } from "@/hooks/use-toast";
-import type { Database } from "@/integrations/supabase/types";
 
-type AppRole = Database["public"]["Enums"]["app_role"];
+type AppRole = "admin" | "super_distributor" | "master_distributor" | "distributor" | "retailer";
 
 interface UserRow {
   id: string;
@@ -33,6 +36,7 @@ interface UserRow {
   parent_id: string | null;
   created_at: string;
   role?: AppRole;
+  walletBalance?: number;
 }
 
 const ROLE_LABELS: Record<AppRole, string> = {
@@ -131,33 +135,42 @@ export default function DashboardUsers() {
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
-    const [{ data: profiles }, { data: roles }, { data: wallets }] = await Promise.all([
-      supabase.from("profiles").select("*"),
-      supabase.from("user_roles").select("user_id, role"),
-      supabase.from("wallets").select("user_id, balance"),
-    ]);
-    if (profiles && roles) {
-      const roleMap = new Map(roles.map((r) => [r.user_id, r.role]));
-      const merged: UserRow[] = profiles.map((p) => ({ ...p, role: roleMap.get(p.user_id) as AppRole | undefined }));
-      merged.sort((a, b) => {
-        if (a.role === "admin" && b.role !== "admin") return -1;
-        if (b.role === "admin" && a.role !== "admin") return 1;
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      });
-      setUsers(merged);
+    try {
+      const data = await apiFetch("/users");
+      if (data) {
+        const merged: UserRow[] = (data || []).map((u: any) => ({
+          ...u,
+          id: u.id,
+          user_id: u.userId,
+          full_name: u.fullName,
+          business_name: u.businessName,
+          kyc_status: u.kycStatus,
+          status: u.status,
+          parent_id: u.parentId,
+          created_at: u.createdAt,
+          role: u.role,
+          walletBalance: u.walletBalance,
+        }));
 
-      // Compute wallet totals by role
-      const balanceMap = new Map((wallets || []).map((w: any) => [w.user_id, parseFloat(w.balance)]));
-      const totals: Record<string, number> = { total: 0, super_distributor: 0, master_distributor: 0, distributor: 0, retailer: 0 };
-      merged.forEach((u) => {
-        const bal = balanceMap.get(u.user_id) || 0;
-        totals.total += bal;
-        if (u.role && u.role !== "admin") totals[u.role] = (totals[u.role] || 0) + bal;
-      });
-      setWalletTotals(totals);
+        merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        setUsers(merged);
+
+        // Compute wallet totals by role
+        const totals: Record<string, number> = { total: 0, super_distributor: 0, master_distributor: 0, distributor: 0, retailer: 0 };
+        merged.forEach((u) => {
+          const bal = Number(u.walletBalance || 0);
+          totals.total += bal;
+          if (u.role) totals[u.role] = (totals[u.role] || 0) + bal;
+        });
+        setWalletTotals(totals);
+      }
+    } catch (err: any) {
+      console.error("Error fetching users:", err);
+      toast({ title: "Fetch Error", description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }, []);
+  }, [myRole]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
@@ -180,11 +193,13 @@ export default function DashboardUsers() {
   const invokeManageUser = async (action: string, target_user_id: string, extra: Record<string, any> = {}) => {
     setProcessing(true);
     try {
-      const res = await supabase.functions.invoke("manage-user", {
-        body: { action, target_user_id, ...extra },
+      // These actions can now be handled by the Express backend
+      const res = await apiFetch("/users/manage", {
+        method: "POST",
+        body: JSON.stringify({ action, target_user_id, ...extra }),
       });
-      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
-      toast({ title: "Success", description: res.data?.message || "Action completed." });
+      toast({ title: "Success", description: res.message || "Action completed." });
+
       fetchUsers();
       return true;
     } catch (err: any) {
@@ -217,9 +232,10 @@ export default function DashboardUsers() {
     }
     setProcessing(true);
     try {
-      // First create user to get their ID
-      const res = await supabase.functions.invoke("create-user", {
-        body: {
+      // First create user in Neon
+      const res = await apiFetch("/users", {
+        method: "POST",
+        body: JSON.stringify({
           email: formEmail.trim(), password: formPassword, full_name: formName.trim(),
           phone: formPhone.trim() || null, business_name: formBusiness.trim() || null,
           role: formRole, parent_id: formParent || null,
@@ -229,9 +245,8 @@ export default function DashboardUsers() {
           bank_account_number: formBankAcct.trim() || null,
           bank_ifsc: formBankIfsc.trim().toUpperCase() || null,
           bank_account_holder: formBankHolder.trim() || null,
-        },
+        }),
       });
-      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
 
       const newUserId = res.data.user.id;
 
@@ -304,12 +319,12 @@ export default function DashboardUsers() {
   const handleImpersonate = async (u: UserRow) => {
     setImpersonating(true);
     try {
-      const res = await supabase.functions.invoke("impersonate-user", {
-        body: { target_user_id: u.user_id },
+      const res = await apiFetch("/users/manage", {
+        method: "POST",
+        body: JSON.stringify({ action: "impersonate", target_user_id: u.user_id }),
       });
-      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
 
-      const { access_token, refresh_token } = res.data;
+      const { access_token, refresh_token } = res;
       if (!access_token || !refresh_token) throw new Error("Failed to get session tokens");
 
       // Open impersonated session in a NEW tab, keeping admin session intact
@@ -329,21 +344,15 @@ export default function DashboardUsers() {
 
   const openServiceManagement = async (u: UserRow) => {
     setServiceUser(u);
-    const [{ data: services }, { data: overrides }] = await Promise.all([
-      supabase.from("service_config").select("service_key, service_label, is_enabled").order("service_label"),
-      supabase.from("user_service_overrides").select("service_key, is_enabled").eq("user_id", u.user_id),
-    ]);
-
-    const overrideMap = new Map((overrides || []).map((o: any) => [o.service_key, o.is_enabled]));
-    setServiceToggles(
-      (services || []).map((s: any) => ({
-        service_key: s.service_key,
-        service_label: s.service_label,
-        is_enabled: s.is_enabled,
-        user_disabled: overrideMap.has(s.service_key) && !overrideMap.get(s.service_key),
-      }))
-    );
-    setServiceOpen(true);
+    try {
+      const services = await apiFetch(`/users/${u.user_id}/services`);
+      if (services) {
+        setServiceToggles(services);
+        setServiceOpen(true);
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
   };
 
   const handleServiceToggle = async (serviceKey: string, currentlyDisabled: boolean) => {
@@ -402,26 +411,20 @@ export default function DashboardUsers() {
 
   const formatINR = (v: number) => `₹${v.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
 
-  const totalUsers = users.filter((u) => u.role !== "admin").length;
-  const sdCount = users.filter((u) => u.role === "super_distributor").length;
-  const mdCount = users.filter((u) => u.role === "master_distributor").length;
-  const distributorCount = users.filter((u) => u.role === "distributor").length;
-  const retailerCount = users.filter((u) => u.role === "retailer").length;
-  const activeCount = users.filter((u) => u.status === "active" && u.role !== "admin").length;
-  const deactivatedCount = users.filter((u) => u.status !== "active" && u.role !== "admin").length;
+
 
   const handleCardClick = (roleFilter: string) => {
     setFilterRole(filterRole === roleFilter ? "all" : roleFilter);
   };
 
   const statsCards = [
-    { label: "Total Users", value: totalUsers, sub: formatINR(walletTotals.total || 0), icon: Users, color: "text-primary bg-primary/10", filterKey: "all" },
-    { label: "Super Distributors", value: sdCount, sub: formatINR(walletTotals.super_distributor || 0), icon: ShieldCheck, color: "text-chart-1 bg-chart-1/10", filterKey: "super_distributor" },
-    { label: "Master Distributors", value: mdCount, sub: formatINR(walletTotals.master_distributor || 0), icon: ShieldAlert, color: "text-chart-3 bg-chart-3/10", filterKey: "master_distributor" },
-    { label: "Distributors", value: distributorCount, sub: formatINR(walletTotals.distributor || 0), icon: UserPlus, color: "text-destructive bg-destructive/10", filterKey: "distributor" },
-    { label: "Retailers", value: retailerCount, sub: formatINR(walletTotals.retailer || 0), icon: Store, color: "text-chart-2 bg-chart-2/10", filterKey: "retailer" },
-    { label: "Active", value: activeCount, sub: null, icon: UserCheck, color: "text-success bg-success/10", filterKey: "_active" },
-    { label: "Deactivated", value: deactivatedCount, sub: null, icon: UserX, color: "text-warning bg-warning/10", filterKey: "_deactivated" },
+    { label: "Total Users", value: users.length, sub: formatINR(walletTotals.total || 0), icon: Users, color: "text-primary bg-primary/10", filterKey: "all" },
+    ...(isAdmin ? [{ label: "Super Distributors", value: users.filter(u => u.role === "super_distributor").length, sub: formatINR(walletTotals.super_distributor || 0), icon: ShieldCheck, color: "text-chart-1 bg-chart-1/10", filterKey: "super_distributor" }] : []),
+    ...(myRole && ROLE_LEVEL[myRole] <= 2 ? [{ label: "Master Distributors", value: users.filter(u => u.role === "master_distributor").length, sub: formatINR(walletTotals.master_distributor || 0), icon: ShieldAlert, color: "text-chart-3 bg-chart-3/10", filterKey: "master_distributor" }] : []),
+    ...(myRole && ROLE_LEVEL[myRole] <= 3 ? [{ label: "Distributors", value: users.filter(u => u.role === "distributor").length, sub: formatINR(walletTotals.distributor || 0), icon: UserPlus, color: "text-destructive bg-destructive/10", filterKey: "distributor" }] : []),
+    { label: "Retailers", value: users.filter(u => u.role === "retailer").length, sub: formatINR(walletTotals.retailer || 0), icon: Store, color: "text-chart-2 bg-chart-2/10", filterKey: "retailer" },
+    { label: "Active", value: users.filter((u) => u.status === "active").length, sub: null, icon: UserCheck, color: "text-success bg-success/10", filterKey: "_active" },
+    { label: "Deactivated", value: users.filter((u) => u.status !== "active").length, sub: null, icon: UserX, color: "text-warning bg-warning/10", filterKey: "_deactivated" },
   ];
 
   const handleSearch = () => {
@@ -453,17 +456,10 @@ export default function DashboardUsers() {
         )}
       </div>
 
-      {sessionStorage.getItem("impersonated_as") && (
-        <div className="p-3 rounded-xl border border-warning/50 bg-warning/10 flex items-center justify-between">
-          <span className="text-sm text-foreground font-medium">⚠️ You are viewing as: {sessionStorage.getItem("impersonated_as")}</span>
-          <Button variant="outline" size="sm" onClick={() => window.close()}>
-            Close This Tab
-          </Button>
-        </div>
-      )}
+
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+      <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" }}>
         {statsCards.map((stat) => {
           const isActive = (stat.filterKey === "_active" && filterStatus === "active") ||
             (stat.filterKey === "_deactivated" && filterStatus === "blocked") ||

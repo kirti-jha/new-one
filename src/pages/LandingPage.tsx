@@ -70,11 +70,12 @@ export default function LandingPage() {
       {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass">
         <div className="container mx-auto flex items-center justify-between h-16 px-4">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
-              <Zap className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="font-heading text-xl font-bold text-foreground">Abheepay</span>
+          <Link to="/" className="flex items-center">
+            <img
+              src="https://pos.abheepay.com/assets/FORMAT-PNG-Lj3U1uY2.png"
+              alt="ABHEEPAY"
+              className="h-10 w-auto"
+            />
           </Link>
           <div className="hidden md:flex items-center gap-8">
             <a href="#services" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Services</a>
@@ -246,11 +247,12 @@ export default function LandingPage() {
       <footer className="border-t border-border py-12">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-md bg-gradient-primary flex items-center justify-center">
-                <Zap className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <span className="font-heading font-bold text-foreground">Abheepay</span>
+            <div className="flex items-center">
+              <img
+                src="https://pos.abheepay.com/assets/FORMAT-PNG-Lj3U1uY2.png"
+                alt="ABHEEPAY"
+                className="h-8 w-auto"
+              />
             </div>
             <p className="text-sm text-muted-foreground">
               © 2026 Abheepay. All rights reserved. Built with ❤️ by the Abheepay Dev Team.

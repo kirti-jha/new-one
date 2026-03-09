@@ -11,9 +11,9 @@ import {
 
 const stats = [
   { title: "My Balance", value: "₹12,80,000", change: "+6.2%", positive: true, icon: Wallet },
-  { title: "Network Volume", value: "₹8,45,000", change: "+11.5%", positive: true, icon: IndianRupee },
+  { title: "E-wallet", value: "₹3,450", change: "+₹200", positive: true, icon: Activity },
+  { title: "Today's Earning", value: "₹12,700", change: "+11.5%", positive: true, icon: IndianRupee },
   { title: "My Distributors", value: "42", change: "+3", positive: true, icon: Users },
-  { title: "Network Success Rate", value: "98.2%", change: "+0.1%", positive: true, icon: Activity },
 ];
 
 const volumeData = [
@@ -50,8 +50,8 @@ export default function MasterDistributorOverview({ name }: { name: string }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-heading font-bold text-foreground">Master Distributor Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-1">Welcome back, {name}. Your distributor network summary.</p>
+        <h1 className="text-2xl font-heading font-bold text-foreground">Welcome, {name}!</h1>
+        <p className="text-sm text-muted-foreground mt-1">Your distributor network summary.</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -112,7 +112,7 @@ export default function MasterDistributorOverview({ name }: { name: string }) {
                 <BarChart data={commissionData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                   <XAxis dataKey="date" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                  <YAxis tickFormatter={(v) => `₹${(v/1000).toFixed(0)}K`} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                  <YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}K`} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} formatter={(v: number) => [`₹${v.toLocaleString("en-IN")}`]} />
                   <Bar dataKey="earned" name="Commission" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} maxBarSize={32} />
                 </BarChart>

@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiFetch } from "@/services/api";
 import {
-  Settings, Palette, Bell, Globe, CreditCard, Save, Upload, Building2, Plus, Trash2, Pencil,
+  Settings, Bell, Globe, CreditCard, Save, Building2, Plus, Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,7 @@ interface BankAccount {
   is_active: boolean;
 }
 
-const settingsTabs = ["General", "Bank Accounts", "Branding", "Notifications", "API & Integrations"] as const;
+const settingsTabs = ["General", "Bank Accounts", "Notifications", "API & Integrations"] as const;
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -42,9 +42,24 @@ export default function SettingsPage() {
 
   const fetchBanks = useCallback(async () => {
     setBankLoading(true);
-    const { data } = await supabase.from("company_bank_accounts").select("*").order("created_at");
-    if (data) setBanks(data as BankAccount[]);
-    setBankLoading(false);
+    try {
+      const data = await apiFetch("/fund-requests/bank-accounts/all");
+      if (data) {
+        setBanks(data.map((b: any) => ({
+          ...b,
+          bank_name: b.bankName,
+          account_name: b.accountName,
+          account_number: b.accountNumber,
+          ifsc_code: b.ifscCode,
+          upi_id: b.upiId,
+          is_active: b.isActive,
+        })));
+      }
+    } catch (err) {
+      console.error("Error fetching banks:", err);
+    } finally {
+      setBankLoading(false);
+    }
   }, []);
 
   useEffect(() => { if (activeTab === "Bank Accounts") fetchBanks(); }, [activeTab, fetchBanks]);
@@ -66,16 +81,25 @@ export default function SettingsPage() {
     }
     setBankSaving(true);
     try {
+      const body = {
+        bank_name: bankName,
+        account_name: acctName,
+        account_number: acctNumber,
+        ifsc_code: ifsc,
+        upi_id: upiId || null,
+      };
+
       if (editBank) {
-        const { error } = await supabase.from("company_bank_accounts")
-          .update({ bank_name: bankName, account_name: acctName, account_number: acctNumber, ifsc_code: ifsc, upi_id: upiId || null })
-          .eq("id", editBank.id);
-        if (error) throw error;
+        await apiFetch(`/fund-requests/bank-accounts/${editBank.id}`, {
+          method: "PATCH",
+          body: JSON.stringify(body),
+        });
         toast({ title: "Bank account updated" });
       } else {
-        const { error } = await supabase.from("company_bank_accounts")
-          .insert({ bank_name: bankName, account_name: acctName, account_number: acctNumber, ifsc_code: ifsc, upi_id: upiId || null, created_by: user.id });
-        if (error) throw error;
+        await apiFetch("/fund-requests/bank-accounts", {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
         toast({ title: "Bank account added" });
       }
       setBankOpen(false); fetchBanks();
@@ -85,8 +109,12 @@ export default function SettingsPage() {
   };
 
   const handleToggleBank = async (b: BankAccount) => {
-    await supabase.from("company_bank_accounts").update({ is_active: !b.is_active }).eq("id", b.id);
-    fetchBanks();
+    try {
+      await apiFetch(`/fund-requests/bank-accounts/${b.id}/toggle`, { method: "PATCH" });
+      fetchBanks();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
   };
 
   return (
@@ -184,27 +212,6 @@ export default function SettingsPage() {
               </div>
             </DialogContent>
           </Dialog>
-        </div>
-      )}
-
-      {activeTab === "Branding" && (
-        <div className="rounded-xl bg-gradient-card border border-border p-6 space-y-6 max-w-2xl">
-          <div className="flex items-center gap-2"><Palette className="w-5 h-5 text-accent" /><h2 className="font-heading font-semibold text-foreground">Branding</h2></div>
-          <div>
-            <Label>Platform Logo</Label>
-            <div className="mt-2 border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/40 transition-colors">
-              <Upload className="w-6 h-6 mx-auto text-muted-foreground mb-2" />
-              <p className="text-sm text-muted-foreground">Drop logo here or click to upload</p>
-              <p className="text-xs text-muted-foreground mt-1">PNG, SVG. Max 2MB.</p>
-            </div>
-          </div>
-          <div><Label>Primary Color</Label>
-            <div className="flex items-center gap-3 mt-1">
-              <div className="w-10 h-10 rounded-lg bg-gradient-primary border border-border" />
-              <Input defaultValue="#34D8E0" className="bg-secondary/50 max-w-xs" />
-            </div>
-          </div>
-          <Button className="bg-gradient-primary text-primary-foreground font-semibold"><Save className="w-4 h-4 mr-1" /> Save Branding</Button>
         </div>
       )}
 

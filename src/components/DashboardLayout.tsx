@@ -47,6 +47,7 @@ export default function DashboardLayout() {
               <input
                 type="text"
                 placeholder="Search transactions, users..."
+                autoComplete="off"
                 className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none flex-1 min-w-0"
               />
             </div>
@@ -71,16 +72,6 @@ export default function DashboardLayout() {
         </header>
 
         <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-auto">
-          {sessionStorage.getItem("impersonated_as") && (
-            <div className="mb-4 p-3 rounded-xl border border-warning/50 bg-warning/10 flex items-center justify-between">
-              <span className="text-sm text-foreground font-medium">
-                ⚠️ Viewing as: <strong>{sessionStorage.getItem("impersonated_as")}</strong> (impersonated session)
-              </span>
-              <Button variant="outline" size="sm" onClick={() => window.close()}>
-                Close Tab
-              </Button>
-            </div>
-          )}
           <Outlet />
         </main>
       </div>

@@ -1,21 +1,9 @@
+import { useState, useEffect, useCallback } from "react";
+import { apiFetch } from "@/services/api";
 import { ArrowLeftRight, Search, Filter, Download, CheckCircle2, XCircle, Clock, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
 
-const mockTransactions = [
-  { id: "TXN240301001", type: "AEPS Withdrawal", user: "Rajesh Kumar", userRole: "Retailer", amount: "₹5,000", fee: "₹15", status: "Success", date: "Mar 8, 2026 14:32", direction: "out" },
-  { id: "TXN240301002", type: "DMT Transfer", user: "Priya Sharma", userRole: "Retailer", amount: "₹25,000", fee: "₹75", status: "Success", date: "Mar 8, 2026 14:28", direction: "out" },
-  { id: "TXN240301003", type: "BBPS - Electricity", user: "Amit Patel", userRole: "Distributor", amount: "₹2,450", fee: "₹10", status: "Pending", date: "Mar 8, 2026 14:15", direction: "out" },
-  { id: "TXN240301004", type: "Fund Transfer", user: "Sunita Devi", userRole: "Retailer", amount: "₹1,00,000", fee: "₹0", status: "Success", date: "Mar 8, 2026 13:55", direction: "in" },
-  { id: "TXN240301005", type: "Recharge - Jio", user: "Vikram Singh", userRole: "Retailer", amount: "₹299", fee: "₹5", status: "Failed", date: "Mar 8, 2026 13:42", direction: "out" },
-  { id: "TXN240301006", type: "AEPS Balance Inquiry", user: "Meena Kumari", userRole: "Distributor", amount: "₹0", fee: "₹3", status: "Success", date: "Mar 8, 2026 13:30", direction: "out" },
-  { id: "TXN240301007", type: "PAN Application", user: "Rajesh Kumar", userRole: "Retailer", amount: "₹107", fee: "₹20", status: "Success", date: "Mar 8, 2026 13:10", direction: "out" },
-  { id: "TXN240301008", type: "Payout - IMPS", user: "Admin", userRole: "Admin", amount: "₹5,00,000", fee: "₹100", status: "Success", date: "Mar 8, 2026 12:45", direction: "out" },
-  { id: "TXN240301009", type: "BBPS - Gas", user: "Priya Sharma", userRole: "Retailer", amount: "₹1,050", fee: "₹8", status: "Pending", date: "Mar 8, 2026 12:30", direction: "out" },
-  { id: "TXN240301010", type: "DMT Transfer", user: "Amit Patel", userRole: "Distributor", amount: "₹10,000", fee: "₹30", status: "Failed", date: "Mar 8, 2026 12:15", direction: "out" },
-];
-
-const statusConfig: Record<string, { icon: typeof CheckCircle2; className: string }> = {
+const statusConfig: Record<string, { icon: any; className: string }> = {
   Success: { icon: CheckCircle2, className: "text-success bg-success/10" },
   Pending: { icon: Clock, className: "text-warning bg-warning/10" },
   Failed: { icon: XCircle, className: "text-destructive bg-destructive/10" },
@@ -25,14 +13,42 @@ const tabs = ["All", "Success", "Pending", "Failed"] as const;
 
 export default function TransactionsPage() {
   const [activeTab, setActiveTab] = useState<string>("All");
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = activeTab === "All" ? mockTransactions : mockTransactions.filter((t) => t.status === activeTab);
+  const fetchTransactions = useCallback(async () => {
+    setLoading(true);
+    try {
+      const status = activeTab === "All" ? "" : activeTab.toLowerCase();
+      const data = await apiFetch(`/transactions?status=${status}`);
+      if (data) {
+        setTransactions(data.map((t: any) => ({
+          ...t,
+          id: t.txnId || t.id,
+          type: t.serviceType,
+          user: t.userName || "Myself",
+          userRole: t.userRole || "User",
+          amount: `₹${Number(t.amount).toLocaleString("en-IN")}`,
+          fee: `₹${Number(t.fee || 0).toLocaleString("en-IN")}`,
+          status: t.status.charAt(0).toUpperCase() + t.status.slice(1),
+          date: new Date(t.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+          direction: t.type === "credit" ? "in" : "out",
+        })));
+      }
+    } catch (err) {
+      console.error("Error fetching transactions:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab]);
+
+  useEffect(() => { fetchTransactions(); }, [fetchTransactions]);
 
   const stats = {
-    total: mockTransactions.length,
-    success: mockTransactions.filter((t) => t.status === "Success").length,
-    pending: mockTransactions.filter((t) => t.status === "Pending").length,
-    failed: mockTransactions.filter((t) => t.status === "Failed").length,
+    total: transactions.length,
+    success: transactions.filter((t) => t.status === "Success").length,
+    pending: transactions.filter((t) => t.status === "Pending").length,
+    failed: transactions.filter((t) => t.status === "Failed").length,
   };
 
   return (
@@ -85,48 +101,54 @@ export default function TransactionsPage() {
         <div className="flex items-center gap-2 p-5 border-b border-border">
           <ArrowLeftRight className="w-5 h-5 text-primary" />
           <h2 className="font-heading font-semibold text-foreground">Transaction Log</h2>
-          <span className="text-xs text-muted-foreground ml-2">({filtered.length})</span>
+          <span className="text-xs text-muted-foreground ml-2">({transactions.length})</span>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border">
-                {["", "TXN ID", "Type", "User", "Amount", "Fee", "Status", "Date"].map((h) => (
-                  <th key={h} className="text-left py-3 px-5 text-xs font-medium text-muted-foreground uppercase tracking-wider">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((txn) => {
-                const Cfg = statusConfig[txn.status];
-                return (
-                  <tr key={txn.id} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
-                    <td className="py-3 px-5">
-                      {txn.direction === "in" ? (
-                        <ArrowDownRight className="w-4 h-4 text-success" />
-                      ) : (
-                        <ArrowUpRight className="w-4 h-4 text-muted-foreground" />
-                      )}
-                    </td>
-                    <td className="py-3 px-5 font-mono text-xs text-primary">{txn.id}</td>
-                    <td className="py-3 px-5 text-foreground font-medium">{txn.type}</td>
-                    <td className="py-3 px-5">
-                      <div className="text-foreground">{txn.user}</div>
-                      <div className="text-xs text-muted-foreground">{txn.userRole}</div>
-                    </td>
-                    <td className="py-3 px-5 font-medium text-foreground">{txn.amount}</td>
-                    <td className="py-3 px-5 text-muted-foreground">{txn.fee}</td>
-                    <td className="py-3 px-5">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${Cfg.className}`}>
-                        <Cfg.icon className="w-3 h-3" />{txn.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-5 text-muted-foreground text-xs">{txn.date}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          {loading ? (
+            <div className="p-10 text-center text-muted-foreground">Loading transactions...</div>
+          ) : transactions.length === 0 ? (
+            <div className="p-10 text-center text-muted-foreground">No transactions found.</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  {["", "TXN ID", "Type", "User", "Amount", "Fee", "Status", "Date"].map((h) => (
+                    <th key={h} className="text-left py-3 px-5 text-xs font-medium text-muted-foreground uppercase tracking-wider">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {transactions.map((txn) => {
+                  const Cfg = statusConfig[txn.status] || statusConfig.Pending;
+                  return (
+                    <tr key={txn.id} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
+                      <td className="py-3 px-5">
+                        {txn.direction === "in" ? (
+                          <ArrowDownRight className="w-4 h-4 text-success" />
+                        ) : (
+                          <ArrowUpRight className="w-4 h-4 text-muted-foreground" />
+                        )}
+                      </td>
+                      <td className="py-3 px-5 font-mono text-xs text-primary">{txn.id}</td>
+                      <td className="py-3 px-5 text-foreground font-medium capitalize">{txn.type.replace(/_/g, " ")}</td>
+                      <td className="py-3 px-5">
+                        <div className="text-foreground">{txn.user}</div>
+                        <div className="text-xs text-muted-foreground capitalize">{txn.userRole.replace(/_/g, " ")}</div>
+                      </td>
+                      <td className="py-3 px-5 font-medium text-foreground">{txn.amount}</td>
+                      <td className="py-3 px-5 text-muted-foreground">{txn.fee}</td>
+                      <td className="py-3 px-5">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${Cfg.className}`}>
+                          <Cfg.icon className="w-3 h-3" />{txn.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-5 text-muted-foreground text-xs">{txn.date}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>
