@@ -20,6 +20,8 @@ import serviceConfigRoutes from "./routes/serviceConfig";
 import tpinRoutes from "./routes/tpin";
 import filesRoutes from "./routes/files";
 import staffRoutes from "./routes/staff";
+import publicServiceInfoRoutes from "./routes/publicServiceInfo";
+import publicContactRoutes from "./routes/publicContact";
 
 export const prisma = new PrismaClient();
 
@@ -73,6 +75,8 @@ app.use("/api/service-config", serviceConfigRoutes);
 app.use("/api/tpin", tpinRoutes);
 app.use("/api/files", filesRoutes);
 app.use("/api/staff", staffRoutes);
+app.use("/api/public", publicServiceInfoRoutes);
+app.use("/api/public", publicContactRoutes);
 
 app.listen(PORT, () => {
   console.log(`✅ AbheePay backend running on http://localhost:${PORT}`);

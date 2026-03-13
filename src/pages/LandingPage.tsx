@@ -1,7 +1,11 @@
+import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { MARKETING_SERVICES } from "@/data/services";
 import usePageTitle from "@/hooks/usePageTitle";
+import { apiFetch } from "@/services/api";
 import {
   Zap,
   Shield,
@@ -10,9 +14,7 @@ import {
   ChevronRight,
   CheckCircle2,
   Link2,
-  PhoneCall,
-  Mail,
-  MapPin,
+  Layers,
 } from "lucide-react";
 
 
@@ -35,8 +37,45 @@ const stats = [
 export default function LandingPage() {
   usePageTitle("AbheePay | Home");
 
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactMobile, setContactMobile] = useState("");
+  const [contactMessage, setContactMessage] = useState("");
+  const [contactSending, setContactSending] = useState(false);
+  const [contactError, setContactError] = useState<string | null>(null);
+  const [contactSuccess, setContactSuccess] = useState<string | null>(null);
+
+  async function submitContact(e: FormEvent) {
+    e.preventDefault();
+    if (contactSending) return;
+
+    setContactError(null);
+    setContactSuccess(null);
+    setContactSending(true);
+    try {
+      await apiFetch("/public/contact", {
+        method: "POST",
+        body: JSON.stringify({
+          name: contactName,
+          email: contactEmail,
+          mobile: contactMobile,
+          message: contactMessage,
+        }),
+      });
+      setContactSuccess("Thanks! Your query has been sent to sales@abheepay.com.");
+      setContactName("");
+      setContactEmail("");
+      setContactMobile("");
+      setContactMessage("");
+    } catch (err: any) {
+      setContactError(err?.message || "Failed to send. Please try again.");
+    } finally {
+      setContactSending(false);
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-background">
+    <div id="top" className="min-h-screen bg-background">
       {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass">
         <div className="container mx-auto flex items-center justify-between h-16 px-4">
@@ -50,8 +89,6 @@ export default function LandingPage() {
           <div className="hidden md:flex items-center gap-8">
             <a href="#stats" className="text-sm text-muted-foreground hover:text-foreground transition-colors">About Us</a>
             <a href="#services" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Services</a>
-            <Link to="/signup?role=retailer" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Join as Retailer</Link>
-            <Link to="/signup?role=distributor" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Join as Distributor</Link>
             <Link to="/blogs" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Blogs</Link>
             <a href="#contact" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Contact Us</a>
           </div>
@@ -59,9 +96,9 @@ export default function LandingPage() {
             <Link to="/login">
               <Button variant="hero-outline" size="sm">Login</Button>
             </Link>
-            <Link to="/login">
-              <Button variant="hero" size="sm">Get Started</Button>
-            </Link>
+            <Button asChild variant="hero" size="sm">
+              <a href="#contact">Get Started</a>
+            </Button>
           </div>
         </div>
       </nav>
@@ -211,22 +248,22 @@ export default function LandingPage() {
               <p className="text-muted-foreground mb-8 max-w-lg mx-auto">
                 Join thousands of distributors and retailers already using Abheepay to power their financial services network.
               </p>
-              <Link to="/login">
-                <Button variant="hero" size="lg" className="text-base px-10">
+              <Button asChild variant="hero" size="lg" className="text-base px-10">
+                <a href="#contact">
                   Get Started Now
                   <ArrowRight className="w-4 h-4 ml-1" />
-                </Button>
-              </Link>
+                </a>
+              </Button>
             </div>
           </div>
         </div>
       </section>
 
       {/* Contact */}
-      <section id="contact" className="py-20 bg-gradient-hero">
+      <section id="contact" className="py-20 bg-gradient-hero scroll-mt-24">
         <div className="container mx-auto px-4">
-          <div className="max-w-5xl mx-auto grid gap-8 lg:grid-cols-2 items-start">
-            <div>
+          <div className="max-w-5xl mx-auto">
+            <div className="max-w-2xl">
               <h2 className="text-3xl sm:text-4xl font-heading font-bold text-foreground">
                 Contact <span className="text-gradient-primary">Us</span>
               </h2>
@@ -234,22 +271,68 @@ export default function LandingPage() {
                 Reach out for onboarding, pricing, and integration support.
               </p>
             </div>
-            <div className="rounded-2xl border border-border bg-gradient-card p-6 shadow-elevated">
-              <div className="text-sm text-muted-foreground">Call Us</div>
-              <a className="text-foreground font-medium mt-1 inline-block hover:underline" href="tel:+918860037218">
-                +91 88600 37218
-              </a>
-              <div className="h-px bg-border my-5" />
-              <div className="text-sm text-muted-foreground">Email Us</div>
-              <a className="text-foreground font-medium mt-1 inline-block hover:underline" href="mailto:care@abheepay.in">
-                care@abheepay.in
-              </a>
-              <div className="h-px bg-border my-5" />
-              <div className="text-sm text-muted-foreground">Visit Us</div>
-              <div className="text-foreground font-medium mt-1 leading-relaxed">
-                2nd Floor, Plot No - 3, KH. NO. 33/6<br />
-                AMBERHAI, SECTOR-19, DWARKA,<br />
-                NEW DELHI - 110043
+
+            <div className="mt-10 grid gap-6 lg:grid-cols-2 items-start">
+              <div className="rounded-2xl border border-border bg-gradient-card p-6 shadow-elevated">
+                <div className="text-sm text-muted-foreground">Call Us</div>
+                <a className="text-foreground font-medium mt-1 inline-block hover:underline" href="tel:+918860037218">
+                  +91 88600 37218
+                </a>
+                <div className="h-px bg-border my-5" />
+                <div className="text-sm text-muted-foreground">Email Us</div>
+                <a className="text-foreground font-medium mt-1 inline-block hover:underline" href="mailto:care@abheepay.in">
+                  care@abheepay.in
+                </a>
+                <div className="h-px bg-border my-5" />
+                <div className="text-sm text-muted-foreground">Visit Us</div>
+                <div className="text-foreground font-medium mt-1 leading-relaxed">
+                  2nd Floor, Plot No - 3, KH. NO. 33/6<br />
+                  AMBERHAI, SECTOR-19, DWARKA,<br />
+                  NEW DELHI - 110043
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-gradient-card p-6 shadow-elevated">
+                <div className="text-sm text-muted-foreground">Send a query</div>
+                <form onSubmit={submitContact} className="mt-4 space-y-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Input
+                      value={contactName}
+                      onChange={(e) => setContactName(e.target.value)}
+                      placeholder="Name"
+                      required
+                    />
+                    <Input
+                      value={contactMobile}
+                      onChange={(e) => setContactMobile(e.target.value)}
+                      placeholder="Mobile"
+                      inputMode="tel"
+                      required
+                    />
+                  </div>
+                  <Input
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    placeholder="Email"
+                    type="email"
+                    required
+                  />
+                  <Textarea
+                    value={contactMessage}
+                    onChange={(e) => setContactMessage(e.target.value)}
+                    placeholder="Message / Query"
+                    required
+                    rows={5}
+                  />
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <Button type="submit" variant="hero" size="sm" disabled={contactSending}>
+                      {contactSending ? "Sending..." : "Send"}
+                    </Button>
+                    <div className="text-xs text-muted-foreground">Sent to sales@abheepay.com</div>
+                  </div>
+                  {contactError ? <div className="text-xs text-red-500">{contactError}</div> : null}
+                  {contactSuccess ? <div className="text-xs text-emerald-600">{contactSuccess}</div> : null}
+                </form>
               </div>
             </div>
           </div>
@@ -257,7 +340,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-900 text-slate-100">
+      <footer className="bg-slate-900 text-slate-100 font-bold">
         <div className="container mx-auto px-4 py-16">
           <div className="grid gap-10 lg:grid-cols-3 items-start">
             <div>
@@ -271,9 +354,9 @@ export default function LandingPage() {
               <p className="mt-5 text-sm text-slate-300 leading-relaxed max-w-sm">
                 AbheePay delivers secure fintech, payments, and digital financial solutions.
               </p>
-              <a href="#stats" className="mt-4 inline-flex items-center text-sm font-medium text-teal-300 hover:text-teal-200">
+              <Link to="/about" className="mt-4 inline-flex items-center text-sm font-medium text-teal-300 hover:text-teal-200">
                 Read more <ChevronRight className="w-4 h-4 ml-1" />
-              </a>
+              </Link>
             </div>
 
             <div>
@@ -282,11 +365,15 @@ export default function LandingPage() {
                 <h3 className="text-2xl font-heading font-bold">Quick link</h3>
               </div>
               <div className="mt-5 border-t border-slate-700/70">
+                <a
+                  href="#top"
+                  className="flex items-center justify-between gap-3 py-3 border-b border-slate-700/70 text-slate-200 hover:text-white transition-colors"
+                >
+                  <span className="text-sm">Home</span>
+                  <ChevronRight className="w-4 h-4 text-slate-500" />
+                </a>
                 {[
-                  { label: "Home", to: "/" },
                   { label: "Refund Policy", to: "/refund-policy" },
-                  { label: "Join as Retailer", to: "/signup?role=retailer" },
-                  { label: "Join as Distributor", to: "/signup?role=distributor" },
                   { label: "Privacy Policy", to: "/privacy-policy" },
                   { label: "Terms & Conditions", to: "/terms" },
                 ].map((l) => (
@@ -303,38 +390,21 @@ export default function LandingPage() {
             </div>
 
             <div>
-              <h3 className="text-2xl font-heading font-bold">Contact Us</h3>
-              <div className="mt-6 space-y-6">
-                <div className="flex gap-3">
-                  <PhoneCall className="w-5 h-5 text-teal-300 mt-0.5 shrink-0" />
-                  <div>
-                    <div className="text-sm font-semibold">Call Us</div>
-                    <a className="text-sm text-slate-300 hover:text-white" href="tel:+918860037218">
-                      +91 88600 37218
-                    </a>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <Mail className="w-5 h-5 text-teal-300 mt-0.5 shrink-0" />
-                  <div>
-                    <div className="text-sm font-semibold">Email Us</div>
-                    <a className="text-sm text-slate-300 hover:text-white" href="mailto:care@abheepay.in">
-                      care@abheepay.in
-                    </a>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <MapPin className="w-5 h-5 text-teal-300 mt-0.5 shrink-0" />
-                  <div>
-                    <div className="text-sm font-semibold">Visit Us</div>
-                    <div className="text-sm text-slate-300 leading-relaxed">
-                      2nd Floor, Plot No - 3, KH. NO. 33/6
-                      <br />
-                      AMBERHAI, SECTOR-19, DWARKA,
-                      <br />
-                      NEW DELHI - 110043
-                    </div>
-                  </div>
+              <div className="flex items-center gap-2">
+                <Layers className="w-5 h-5 text-teal-300" />
+                <h3 className="text-2xl font-heading font-bold">Services</h3>
+              </div>
+              <div className="mt-5 border-t border-slate-700/70 pt-4">
+                <div className="grid grid-cols-2 gap-x-6">
+                  {MARKETING_SERVICES.map((svc) => (
+                    <Link
+                      key={svc.key}
+                      to={`/services/${svc.key}`}
+                      className="py-2 text-sm text-slate-200 hover:text-white transition-colors"
+                    >
+                      {svc.title}
+                    </Link>
+                  ))}
                 </div>
               </div>
             </div>

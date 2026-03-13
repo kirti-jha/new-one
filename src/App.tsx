@@ -13,6 +13,8 @@ const LoginPage = lazy(() => import("./pages/LoginPage"));
 const ServicesIndexPage = lazy(() => import("./pages/ServicesIndexPage"));
 const ServiceDetailPage = lazy(() => import("./pages/ServiceDetailPage"));
 const BlogsPage = lazy(() => import("./pages/BlogsPage"));
+const BlogDetailPage = lazy(() => import("./pages/BlogDetailPage"));
+const AboutPage = lazy(() => import("./pages/AboutPage"));
 const RefundPolicyPage = lazy(() => import("./pages/RefundPolicyPage"));
 const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
 const TermsPage = lazy(() => import("./pages/TermsPage"));
@@ -84,6 +86,8 @@ const App = () => (
             <Route path="/services" element={suspense(<ServicesIndexPage />, "Loading services...")} />
             <Route path="/services/:serviceKey" element={suspense(<ServiceDetailPage />, "Loading...")} />
             <Route path="/blogs" element={suspense(<BlogsPage />, "Loading...")} />
+            <Route path="/blogs/:blogId" element={suspense(<BlogDetailPage />, "Loading...")} />
+            <Route path="/about" element={suspense(<AboutPage />, "Loading...")} />
             <Route path="/refund-policy" element={suspense(<RefundPolicyPage />, "Loading...")} />
             <Route path="/privacy-policy" element={suspense(<PrivacyPolicyPage />, "Loading...")} />
             <Route path="/terms" element={suspense(<TermsPage />, "Loading...")} />
