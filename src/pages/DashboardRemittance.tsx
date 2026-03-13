@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { useState, useEffect } from "react";
 import { TPinDialog } from "@/components/TPinDialog";
 import { useToast } from "@/hooks/use-toast";
-import { dmtService, triggerCommission } from "@/services/instantpay";
+import { remittanceService, triggerCommission } from "@/services/instantpay";
 import { apiFetch } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -28,7 +28,7 @@ interface DmtTransaction {
   created_at: string;
 }
 
-export default function DMTPage() {
+export default function RemittancePage() {
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -62,10 +62,10 @@ export default function DMTPage() {
     if (!user) return;
     setLoadingTxns(true);
     try {
-      const data = await apiFetch("/transactions?service=dmt");
+      const data = await apiFetch("/transactions?service=remittance");
       setTransactions(data as DmtTransaction[]);
     } catch (err) {
-      console.error("Error fetching DMT transactions:", err);
+      console.error("Error fetching Remittance transactions:", err);
     } finally {
       setLoadingTxns(false);
     }
@@ -78,7 +78,7 @@ export default function DMTPage() {
     }
     setCheckingRemitter(true);
     try {
-      const res = await dmtService.checkRemitter(mobile);
+      const res = await remittanceService.checkRemitter(mobile);
       setRemitterExists(res?.data?.isRegistered === true);
       setRemitterChecked(true);
       if (!res?.data?.isRegistered) {
@@ -97,7 +97,7 @@ export default function DMTPage() {
     }
     setVerifyingAccount(true);
     try {
-      const res = await dmtService.verifyBankAccount(accountNumber, ifsc, benefName);
+      const res = await remittanceService.verifyBankAccount(accountNumber, ifsc, benefName);
       if (res?.data?.status === "success") {
         setAccountVerified(true);
         if (res.data.beneficiaryName) setBenefName(res.data.beneficiaryName);
@@ -127,7 +127,7 @@ export default function DMTPage() {
     // Generate OTP before showing T-PIN
     setSendingOtp(true);
     try {
-      await dmtService.generateOtp(mobile);
+      await remittanceService.generateOtp(mobile);
       setOtpSent(true);
       setTpinOpen(true);
     } catch (e: any) {
@@ -143,7 +143,7 @@ export default function DMTPage() {
     }
     setSending(true);
     try {
-      const res = await dmtService.sendMoney({
+      const res = await remittanceService.sendMoney({
         mobile,
         beneficiary_id: accountNumber, // using account as unique key until API returns ID
         amount: parseFloat(amount),
@@ -151,7 +151,7 @@ export default function DMTPage() {
         txn_type: "IMPS",
       });
       toast({ title: "Transfer Initiated!", description: `₹${parseFloat(amount).toLocaleString("en-IN")} sent. Txn ID: ${res?.data?.txnId || "—"}` });
-      triggerCommission("dmt", parseFloat(amount)); // auto-credit commissions up hierarchy
+      triggerCommission("remittance", parseFloat(amount)); // auto-credit commissions up hierarchy
       setAmount(""); setOtp(""); setOtpSent(false);
       fetchTransactions();
     } catch (e: any) {
@@ -164,7 +164,7 @@ export default function DMTPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-heading font-bold text-foreground">Domestic Money Transfer</h1>
+          <h1 className="text-2xl font-heading font-bold text-foreground">Money Transfer (Remittance)</h1>
           <p className="text-sm text-muted-foreground mt-1">Instant IMPS bank-to-bank transfers 24/7. Max ₹5,000/txn.</p>
         </div>
         <Button variant="hero" size="sm" disabled><UserPlus className="w-4 h-4 mr-1" /> Register Sender</Button>
@@ -236,7 +236,7 @@ export default function DMTPage() {
         {/* Recent Transactions */}
         <div className="lg:col-span-3 rounded-xl bg-gradient-card border border-border overflow-hidden">
           <div className="p-5 border-b border-border flex items-center justify-between">
-            <h2 className="font-heading font-semibold text-foreground">DMT Transactions</h2>
+            <h2 className="font-heading font-semibold text-foreground">Recent Transfers</h2>
             <Button variant="ghost" size="sm" onClick={fetchTransactions}>
               <RefreshCw className="w-4 h-4" />
             </Button>
@@ -245,7 +245,7 @@ export default function DMTPage() {
             {loadingTxns ? (
               <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
             ) : transactions.length === 0 ? (
-              <p className="text-center text-muted-foreground text-sm py-10">No DMT transactions yet</p>
+              <p className="text-center text-muted-foreground text-sm py-10">No transfers yet</p>
             ) : (
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-border">

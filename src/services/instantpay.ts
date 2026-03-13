@@ -10,7 +10,7 @@ export function generateClientRef(prefix = "TXN") {
 /** Mapping of Supabase function names to Express REST endpoints */
 const fnMap: Record<string, string> = {
   "instantpay-aeps": "/instantpay/aeps",
-  "instantpay-dmt": "/instantpay/dmt",
+  "instantpay-remittance": "/instantpay/remittance",
   "instantpay-bbps": "/instantpay/bbps",
   "instantpay-payout": "/instantpay/payout",
   "instantpay-verify": "/instantpay/verify",
@@ -36,7 +36,7 @@ async function invoke(fn: string, body: Record<string, unknown>) {
 /**
  * Trigger commission processing after a successful transaction.
  * This walks up the user hierarchy and credits commission to each level.
- * @param serviceKey  e.g. "aeps", "dmt", "bbps", "payout", "recharge"
+ * @param serviceKey  e.g. "aeps", "remittance", "bbps", "payout", "recharge"
  * @param amount      Transaction amount in INR
  */
 export async function triggerCommission(serviceKey: string, amount: number) {
@@ -77,42 +77,42 @@ export const aepsService = {
     invoke("instantpay-aeps", { action: "cash_deposit", ...params }),
 };
 
-// ─── DMT (Domestic Money Transfer) ─────────────────────────────────────────────
+// ─── Remittance (formerly DMT) ───────────────────────────────────────────
 
-export const dmtService = {
+export const remittanceService = {
   checkRemitter: (mobile: string) =>
-    invoke("instantpay-dmt", { action: "remitter-profile", mobile }),
+    invoke("instantpay-remittance", { action: "remitter-profile", mobile }),
 
   registerRemitter: (params: { mobile: string; first_name: string; last_name: string; address: string; dob: string; pin_code: string }) =>
-    invoke("instantpay-dmt", { action: "remitter-registration", ...params }),
+    invoke("instantpay-remittance", { action: "remitter-registration", ...params }),
 
   verifyRemitterOtp: (mobile: string, otp: string) =>
-    invoke("instantpay-dmt", { action: "remitter-registration-verify", mobile, otp }),
+    invoke("instantpay-remittance", { action: "remitter-registration-verify", mobile, otp }),
 
   verifyBankAccount: (account_number: string, ifsc_code: string, beneficiary_name: string) =>
-    invoke("instantpay-dmt", { action: "bank-details", account_number, ifsc_code, beneficiary_name }),
+    invoke("instantpay-remittance", { action: "bank-details", account_number, ifsc_code, beneficiary_name }),
 
   addBeneficiary: (params: { mobile: string; beneficiary_name: string; account_number: string; ifsc_code: string; bank_name: string }) =>
-    invoke("instantpay-dmt", { action: "beneficiary-registration", ...params }),
+    invoke("instantpay-remittance", { action: "beneficiary-registration", ...params }),
 
   addBeneficiaryVerify: (mobile: string, otp: string) =>
-    invoke("instantpay-dmt", { action: "beneficiary-registration-verify", mobile, otp }),
+    invoke("instantpay-remittance", { action: "beneficiary-registration-verify", mobile, otp }),
 
   deleteBeneficiary: (mobile: string, beneficiary_id: string) =>
-    invoke("instantpay-dmt", { action: "beneficiary-delete", mobile, beneficiary_id }),
+    invoke("instantpay-remittance", { action: "beneficiary-delete", mobile, beneficiary_id }),
 
   generateOtp: (mobile: string) =>
-    invoke("instantpay-dmt", { action: "generate-otp", mobile }),
+    invoke("instantpay-remittance", { action: "generate-otp", mobile }),
 
   sendMoney: (params: { mobile: string; beneficiary_id: string; amount: number; txn_type?: "IMPS" | "NEFT"; otp: string }) =>
-    invoke("instantpay-dmt", {
+    invoke("instantpay-remittance", {
       action: "transaction",
-      client_ref_id: generateClientRef("DMT"),
+      client_ref_id: generateClientRef("RMT"),
       ...params,
     }),
 
   refund: (txn_id: string, otp: string) =>
-    invoke("instantpay-dmt", { action: "refund", txn_id, otp }),
+    invoke("instantpay-remittance", { action: "refund", txn_id, otp }),
 };
 
 // ─── BBPS (Bill Payments + Recharge) ───────────────────────────────────────────

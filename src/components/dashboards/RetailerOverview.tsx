@@ -24,7 +24,7 @@ const statusVariant = { success: "default" as const, pending: "secondary" as con
 
 const allServices = [
   { label: "AEPS", icon: Fingerprint, path: "/dashboard/aeps", bg: "bg-primary/10", color: "text-primary" },
-  { label: "DMT", icon: Send, path: "/dashboard/dmt", bg: "bg-chart-2/10", color: "text-chart-2" },
+  { label: "Remittance", icon: Send, path: "/dashboard/remittance", bg: "bg-chart-2/10", color: "text-chart-2" },
   { label: "BBPS", icon: Receipt, path: "/dashboard/bbps", bg: "bg-chart-3/10", color: "text-chart-3" },
   { label: "Recharge", icon: Smartphone, path: "/dashboard/recharge", bg: "bg-chart-4/10", color: "text-chart-4" },
   { label: "PAN Card", icon: FileText, path: "/dashboard/pan", bg: "bg-primary/10", color: "text-primary" },
@@ -114,8 +114,7 @@ export default function RetailerOverview({ name }: { name: string }) {
         </CardContent>
       </Card>
 
-      {/* Wallet Summary + Earnings Chart */}
-      < div className="grid gap-4 lg:grid-cols-3" >
+      <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-heading flex items-center gap-2">
@@ -177,10 +176,9 @@ export default function RetailerOverview({ name }: { name: string }) {
             </Link>
           </CardContent>
         </Card>
-      </div >
+      </div>
 
-      {/* Service Usage + Pending Tasks */}
-      < div className="grid gap-4 lg:grid-cols-2" >
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base font-heading">Service Usage Breakdown</CardTitle></CardHeader>
           <CardContent>
@@ -194,16 +192,6 @@ export default function RetailerOverview({ name }: { name: string }) {
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              {[].map((s: any, i) => (
-                <div key={s.name} className="flex items-center gap-2 text-xs">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[i] }} />
-                  <s.icon className="w-3 h-3 text-muted-foreground" />
-                  <span className="text-muted-foreground">{s.name}</span>
-                  <span className="ml-auto font-medium text-foreground">{s.value}%</span>
-                </div>
-              ))}
-            </div>
           </CardContent>
         </Card>
 
@@ -215,15 +203,6 @@ export default function RetailerOverview({ name }: { name: string }) {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {[].map((a: any, i) => (
-                <div key={i} className="flex items-start gap-3 p-3 rounded-lg border border-border">
-                  <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${a.severity === "warning" ? "bg-warning" : "bg-primary"}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-foreground">{a.msg}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{a.time}</p>
-                  </div>
-                </div>
-              ))}
               <p className="text-center text-xs text-muted-foreground py-2 font-medium">No pending tasks</p>
             </div>
             <div className="flex gap-2 mt-4">
@@ -240,10 +219,9 @@ export default function RetailerOverview({ name }: { name: string }) {
             </div>
           </CardContent>
         </Card>
-      </div >
+      </div>
 
-      {/* Recent Transactions */}
-      < Card >
+      <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-heading flex items-center gap-2">
@@ -288,7 +266,7 @@ export default function RetailerOverview({ name }: { name: string }) {
             </table>
           </div>
         </CardContent>
-      </Card >
-    </div >
+      </Card>
+    </div>
   );
 }

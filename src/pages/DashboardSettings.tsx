@@ -26,7 +26,7 @@ const settingsTabs = ["General", "Bank Accounts", "Notifications", "API & Integr
 export default function SettingsPage() {
   const { user, isMasterAdmin, refreshProfile } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<string>("General");
+  const [activeTab, setActiveTab] = useState<typeof settingsTabs[number]>("General");
   const [profileName, setProfileName] = useState("");
   const [profilePhone, setProfilePhone] = useState("");
   const [profileBusiness, setProfileBusiness] = useState("");
@@ -68,6 +68,7 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => { if (activeTab === "Bank Accounts") fetchBanks(); }, [activeTab, fetchBanks]);
+
   useEffect(() => {
     if (activeTab !== "General") return;
     const loadProfile = async () => {
@@ -211,8 +212,7 @@ export default function SettingsPage() {
           <div className="rounded-xl bg-gradient-card border border-border p-6 space-y-4">
             <div className="flex items-center gap-2 mb-2"><CreditCard className="w-5 h-5 text-warning" /><h2 className="font-heading font-semibold text-foreground">Transaction Limits</h2></div>
             <div><Label>AEPS Max Withdrawal</Label><Input defaultValue="10000" type="number" className="bg-secondary/50 mt-1" /></div>
-            <div><Label>DMT Max Per Transaction</Label><Input defaultValue="5000" type="number" className="bg-secondary/50 mt-1" /></div>
-            <div><Label>DMT Daily Limit Per Sender</Label><Input defaultValue="25000" type="number" className="bg-secondary/50 mt-1" /></div>
+            <div><Label>Remittance Max Transfer</Label><Input defaultValue="5000" type="number" className="bg-secondary/50 mt-1" /></div>
             <div><Label>Min Wallet Balance Alert</Label><Input defaultValue="1000" type="number" className="bg-secondary/50 mt-1" /></div>
             <Button className="bg-gradient-primary text-primary-foreground font-semibold"><Save className="w-4 h-4 mr-1" /> Save Limits</Button>
           </div>
@@ -317,7 +317,6 @@ export default function SettingsPage() {
           <div className="flex items-center gap-2"><Settings className="w-5 h-5 text-primary" /><h2 className="font-heading font-semibold text-foreground">API Keys & Integrations</h2></div>
           {[
             { service: "AEPS Provider", key: "aeps_****_7823", status: "Connected" },
-            { service: "DMT Gateway", key: "dmt_****_4521", status: "Connected" },
             { service: "BBPS Integration", key: "bbps_****_9012", status: "Connected" },
             { service: "SMS Gateway", key: "sms_****_3456", status: "Active" },
             { service: "Payment Gateway", key: "pg_****_7890", status: "Active" },

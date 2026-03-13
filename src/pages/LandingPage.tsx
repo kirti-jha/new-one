@@ -118,7 +118,7 @@ export default function LandingPage() {
               Services
             </h1>
             <p className="text-lg text-muted-foreground mb-10 max-w-2xl mx-auto">
-              AEPS, DMT, BBPS, Payouts - everything your distribution network needs.
+              AEPS, BBPS, Payouts - everything your distribution network needs.
               Real-time settlements. Enterprise-grade security. Zero downtime.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

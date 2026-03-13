@@ -20,8 +20,8 @@ type ServiceInfoResponse = {
 const router = Router();
 
 const QUERY_BY_KEY: Record<string, string> = {
+  remittance: "Domestic Money Transfer DMT Remittance India",
   aeps: "AEPS Aadhaar Enabled Payment System",
-  dmt: "Domestic Money Transfer (DMT) India",
   bbps: "BBPS Bharat Bill Payment System",
   recharge: "Mobile recharge DTH recharge India",
   pan: "PAN card application India",
@@ -41,6 +41,10 @@ const QUERY_BY_KEY: Record<string, string> = {
 };
 
 const FALLBACK_BY_KEY: Record<string, { overview: string; bullets: string[] }> = {
+  remittance: {
+    overview: "Remittance (Money Transfer) enables instant funds transfer to any bank account in India using IMPS or NEFT rails.",
+    bullets: ["Instant bank-to-bank transfers 24/7", "Send money using mobile number and account details", "Real-time status tracking and receipt generation"],
+  },
   aeps: {
     overview:
       "AEPS enables basic banking services using Aadhaar authentication via a biometric device at a retail point.",
@@ -49,10 +53,6 @@ const FALLBACK_BY_KEY: Record<string, { overview: string; bullets: string[] }> =
       "Biometric authentication reduces OTP dependency",
       "Works across multiple banks via enabled networks",
     ],
-  },
-  dmt: {
-    overview: "DMT supports quick domestic transfers to Indian bank accounts with real-time status tracking.",
-    bullets: ["24/7 transfers (availability depends on rails)", "Beneficiary management and limits", "Reconciliation and settlement reporting"],
   },
   bbps: {
     overview: "BBPS provides a standardized bill-pay experience across supported billers with end-to-end status visibility.",

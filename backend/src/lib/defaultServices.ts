@@ -7,8 +7,8 @@ export interface DefaultServiceConfig {
 
 export const DEFAULT_SERVICES: DefaultServiceConfig[] = [
   { serviceKey: "aeps", serviceLabel: "AEPS", routePath: "/dashboard/aeps", icon: "Fingerprint" },
+  { serviceKey: "remittance", serviceLabel: "Remittance", routePath: "/dashboard/remittance", icon: "Send" },
   { serviceKey: "bbps", serviceLabel: "BBPS", routePath: "/dashboard/bbps", icon: "Receipt" },
-  { serviceKey: "dmt", serviceLabel: "DMT", routePath: "/dashboard/dmt", icon: "Send" },
   { serviceKey: "recharge", serviceLabel: "Recharge", routePath: "/dashboard/recharge", icon: "Smartphone" },
   { serviceKey: "pan", serviceLabel: "PAN Card", routePath: "/dashboard/pan", icon: "FileText" },
   { serviceKey: "credit_card", serviceLabel: "Credit Card", routePath: "/dashboard/credit-card", icon: "CreditCard" },

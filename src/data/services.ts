@@ -21,7 +21,7 @@ import {
 
 export type MarketingServiceKey =
   | "aeps"
-  | "dmt"
+  | "remittance"
   | "bbps"
   | "recharge"
   | "pan"
@@ -56,11 +56,11 @@ export const MARKETING_SERVICES: MarketingService[] = [
     dashboardPath: "/dashboard/aeps",
   },
   {
-    key: "dmt",
-    title: "DMT",
-    description: "Instant domestic money transfers to any bank account in India, available 24/7.",
+    key: "remittance",
+    title: "Remittance",
+    description: "Instant domestic money transfers to any bank account in India 24/7.",
     icon: Send,
-    dashboardPath: "/dashboard/dmt",
+    dashboardPath: "/dashboard/remittance",
   },
   {
     key: "bbps",

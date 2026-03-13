@@ -31,7 +31,7 @@ const DashboardFundRequests = lazy(() => import("./pages/DashboardFundRequests")
 const DashboardTransactions = lazy(() => import("./pages/DashboardTransactions"));
 
 const DashboardAEPS = lazy(() => import("./pages/DashboardAEPS"));
-const DashboardDMT = lazy(() => import("./pages/DashboardDMT"));
+const DashboardRemittance = lazy(() => import("./pages/DashboardRemittance"));
 const DashboardBBPS = lazy(() => import("./pages/DashboardBBPS"));
 const DashboardPAN = lazy(() => import("./pages/DashboardPAN"));
 const DashboardRecharge = lazy(() => import("./pages/DashboardRecharge"));
@@ -110,7 +110,7 @@ const App = () => (
               {/* Services */}
               <Route path="aeps" element={suspense(<DashboardAEPS />, "Loading...")} />
               <Route path="bbps" element={suspense(<DashboardBBPS />, "Loading...")} />
-              <Route path="dmt" element={suspense(<DashboardDMT />, "Loading...")} />
+              <Route path="remittance" element={suspense(<DashboardRemittance />, "Loading...")} />
               <Route path="recharge" element={suspense(<DashboardRecharge />, "Loading...")} />
               <Route path="loan" element={suspense(<DashboardLoan />, "Loading...")} />
               <Route path="credit-card" element={suspense(<DashboardCreditCard />, "Loading...")} />
