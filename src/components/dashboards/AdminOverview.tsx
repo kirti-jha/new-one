@@ -1,20 +1,15 @@
 import {
   Wallet, Users, IndianRupee, Activity, ArrowUpRight, ArrowDownRight,
-  TrendingUp, Clock, Shield, Server, AlertTriangle,
+  TrendingUp, Shield, AlertTriangle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
-
-const stats = [
-  { title: "Platform Balance", value: "₹4,82,45,890", change: "+12.5%", positive: true, icon: Wallet },
-  { title: "Today's Volume", value: "₹1,28,32,450", change: "+18.2%", positive: true, icon: IndianRupee },
-  { title: "Total Users", value: "12,847", change: "+124", positive: true, icon: Users },
-  { title: "Platform Success Rate", value: "98.7%", change: "-0.2%", positive: false, icon: Activity },
-];
+import { useEffect, useMemo, useState } from "react";
+import { apiFetch } from "@/services/api";
 
 const revenueData = [
   { date: "Mar 1", volume: 9200000, commission: 276000 },
@@ -27,13 +22,6 @@ const revenueData = [
   { date: "Mar 8", volume: 12832450, commission: 384973 },
 ];
 
-const userBreakdown = [
-  { name: "Super Distributors", value: 45 },
-  { name: "Master Distributors", value: 180 },
-  { name: "Distributors", value: 1420 },
-  { name: "Retailers", value: 11202 },
-];
-
 const PIE_COLORS = ["hsl(var(--primary))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))"];
 
 const systemAlerts = [
@@ -42,16 +30,78 @@ const systemAlerts = [
   { msg: "DMT success rate dropped to 96.2%", severity: "warning", time: "2 hr ago" },
 ];
 
-const topSDs = [
-  { name: "Rajiv Enterprises", volume: "₹18,45,000", users: 342, rate: "99.1%" },
-  { name: "Sharma Networks", volume: "₹15,20,000", users: 289, rate: "98.5%" },
-  { name: "Patel Distribution", volume: "₹12,80,000", users: 256, rate: "97.8%" },
-  { name: "Gupta Services", volume: "₹11,40,000", users: 198, rate: "99.3%" },
-];
+const formatINRCompact = (v: number) => `₹${(v / 100000).toFixed(1)}L`;
+const formatMoney = (v: number) => `₹${Number(v || 0).toLocaleString("en-IN")}`;
 
-const formatINR = (v: number) => `₹${(v / 100000).toFixed(1)}L`;
+type TopUser = {
+  user_id: string;
+  name: string;
+  role: string;
+  total_balance: number;
+  e_wallet_balance: number;
+};
 
 export default function AdminOverview({ name }: { name: string }) {
+  const [adminStats, setAdminStats] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const data = await apiFetch("/stats/admin");
+        setAdminStats(data);
+      } catch (err) {
+        console.error("Error loading admin stats:", err);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  const stats = useMemo(
+    () => [
+      {
+        title: "Platform Balance",
+        value: formatMoney(adminStats?.platformBalance || 0),
+        change: "Live",
+        positive: true,
+        icon: Wallet,
+      },
+      {
+        title: "Today's Volume",
+        value: formatMoney(adminStats?.todaysVolume || 0),
+        change: "Today",
+        positive: true,
+        icon: IndianRupee,
+      },
+      {
+        title: "Total Users",
+        value: Number(adminStats?.totalUsers || 0).toLocaleString("en-IN"),
+        change: "Overall",
+        positive: true,
+        icon: Users,
+      },
+      {
+        title: "Platform Success Rate",
+        value: `${Number(adminStats?.successRate || 0).toFixed(2)}%`,
+        change: "Live",
+        positive: Number(adminStats?.successRate || 0) >= 95,
+        icon: Activity,
+      },
+    ],
+    [adminStats]
+  );
+
+  const userBreakdown = useMemo(
+    () => [
+      { name: "Super Distributors", value: adminStats?.userBreakdown?.super_distributor || 0 },
+      { name: "Master Distributors", value: adminStats?.userBreakdown?.master_distributor || 0 },
+      { name: "Distributors", value: adminStats?.userBreakdown?.distributor || 0 },
+      { name: "Retailers", value: adminStats?.userBreakdown?.retailer || 0 },
+    ],
+    [adminStats]
+  );
+
+  const topUsers = (adminStats?.topUsers || []) as TopUser[];
+
   return (
     <div className="space-y-6">
       <div>
@@ -96,8 +146,8 @@ export default function AdminOverview({ name }: { name: string }) {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="date" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                  <YAxis tickFormatter={formatINR} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} formatter={(v: number) => [`₹${v.toLocaleString("en-IN")}`]} />
+                  <YAxis tickFormatter={formatINRCompact} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} formatter={(v: number) => [formatMoney(v)]} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   <Area type="monotone" dataKey="volume" name="Volume" stroke="hsl(var(--primary))" fill="url(#adminVolGrad)" strokeWidth={2} />
                   <Area type="monotone" dataKey="commission" name="Commission" stroke="hsl(var(--chart-2))" fill="none" strokeWidth={2} strokeDasharray="5 5" />
@@ -137,7 +187,7 @@ export default function AdminOverview({ name }: { name: string }) {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-heading flex items-center gap-2">
-              <Shield className="w-4 h-4 text-primary" /> Top Super Distributors
+              <Shield className="w-4 h-4 text-primary" /> Top 5 Users Overall
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -145,19 +195,24 @@ export default function AdminOverview({ name }: { name: string }) {
               <table className="w-full text-sm">
                 <thead><tr className="border-b text-muted-foreground">
                   <th className="text-left py-2 font-medium">Name</th>
-                  <th className="text-right py-2 font-medium">Volume</th>
-                  <th className="text-right py-2 font-medium hidden sm:table-cell">Users</th>
-                  <th className="text-right py-2 font-medium">Rate</th>
+                  <th className="text-left py-2 font-medium hidden sm:table-cell">Role</th>
+                  <th className="text-right py-2 font-medium">Main Wallet</th>
+                  <th className="text-right py-2 font-medium">E-Wallet</th>
                 </tr></thead>
                 <tbody>
-                  {topSDs.map((sd) => (
-                    <tr key={sd.name} className="border-b last:border-0">
-                      <td className="py-2 font-medium text-foreground">{sd.name}</td>
-                      <td className="py-2 text-right text-foreground">{sd.volume}</td>
-                      <td className="py-2 text-right text-muted-foreground hidden sm:table-cell">{sd.users}</td>
-                      <td className="py-2 text-right"><Badge variant="secondary">{sd.rate}</Badge></td>
+                  {topUsers.map((u) => (
+                    <tr key={u.user_id} className="border-b last:border-0">
+                      <td className="py-2 font-medium text-foreground">{u.name}</td>
+                      <td className="py-2 hidden sm:table-cell">
+                        <Badge variant="secondary" className="capitalize">{u.role.replace(/_/g, " ")}</Badge>
+                      </td>
+                      <td className="py-2 text-right text-foreground">{formatMoney(u.total_balance)}</td>
+                      <td className="py-2 text-right text-muted-foreground">{formatMoney(u.e_wallet_balance)}</td>
                     </tr>
                   ))}
+                  {topUsers.length === 0 && (
+                    <tr><td colSpan={4} className="py-4 text-center text-muted-foreground">No users found.</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>

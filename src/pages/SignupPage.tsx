@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Zap, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { apiFetch, setAuthSession } from "@/services/api";
+import usePageTitle from "@/hooks/usePageTitle";
 
 export default function SignupPage() {
+  usePageTitle("AbheePay | Sign Up");
+
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,23 +22,21 @@ export default function SignupPage() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: fullName },
-        emailRedirectTo: window.location.origin,
-      },
-    });
-    setLoading(false);
-    if (error) {
-      toast({ title: "Signup failed", description: error.message, variant: "destructive" });
-    } else {
+    try {
+      const data = await apiFetch("/auth/signup", {
+        method: "POST",
+        body: JSON.stringify({ full_name: fullName, email, password }),
+      });
+      setAuthSession(data.access_token, data.user);
       toast({
         title: "Account created!",
-        description: "Please check your email to verify your account, then log in.",
+        description: "Your account is ready. You are now logged in.",
       });
-      navigate("/login");
+      navigate("/dashboard");
+    } catch (err: any) {
+      toast({ title: "Signup failed", description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -48,7 +49,7 @@ export default function SignupPage() {
             <img
               src="https://pos.abheepay.com/assets/FORMAT-PNG-Lj3U1uY2.png"
               alt="ABHEEPAY"
-              className="h-12 w-auto"
+              className="h-14 w-auto"
             />
           </Link>
           <p className="text-muted-foreground text-sm">Create your Abheepay account</p>

@@ -4,118 +4,142 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { Suspense, lazy } from "react";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import LandingPage from "./pages/LandingPage";
-import LoginPage from "./pages/LoginPage";
-import UnauthorizedPage from "./pages/UnauthorizedPage";
-import BootstrapAdminPage from "./pages/BootstrapAdminPage";
-import DashboardLayout from "./components/DashboardLayout";
-import DashboardOverview from "./pages/DashboardOverview";
-import DashboardUsers from "./pages/DashboardUsers";
-import DashboardWallet from "./pages/DashboardWallet";
-import DashboardFundRequests from "./pages/DashboardFundRequests";
-import DashboardTransactions from "./pages/DashboardTransactions";
-import DashboardAEPS from "./pages/DashboardAEPS";
-import DashboardDMT from "./pages/DashboardDMT";
-import DashboardBBPS from "./pages/DashboardBBPS";
-import DashboardPAN from "./pages/DashboardPAN";
-import DashboardCommissions from "./pages/DashboardCommissions";
-import DashboardKYC from "./pages/DashboardKYC";
-import DashboardSecurity from "./pages/DashboardSecurity";
-import DashboardSettings from "./pages/DashboardSettings";
-import DashboardRecharge from "./pages/DashboardRecharge";
-import DashboardLoan from "./pages/DashboardLoan";
-import DashboardCreditCard from "./pages/DashboardCreditCard";
-import DashboardCCBillPay from "./pages/DashboardCCBillPay";
-import DashboardPayout from "./pages/DashboardPayout";
-import DashboardMATM from "./pages/DashboardMATM";
-import DashboardBankAccount from "./pages/DashboardBankAccount";
-import DashboardPPIWallet from "./pages/DashboardPPIWallet";
-import DashboardTravelBooking from "./pages/DashboardTravelBooking";
-import DashboardTravelPackage from "./pages/DashboardTravelPackage";
-import DashboardInsurance from "./pages/DashboardInsurance";
-import DashboardPG from "./pages/DashboardPG";
-import DashboardPOS from "./pages/DashboardPOS";
-import DashboardSoundBox from "./pages/DashboardSoundBox";
-import DashboardReports from "./pages/DashboardReports";
-import DashboardServiceManagement from "./pages/DashboardServiceManagement";
-import DashboardStaffManagement from "./pages/DashboardStaffManagement";
-import ComingSoon from "./components/ComingSoon";
-import DashboardProfile from "./pages/DashboardProfile";
-import DashboardTpin from "./pages/DashboardTpin";
-import DashboardChangePassword from "./pages/DashboardChangePassword";
-import DashboardCertificate from "./pages/DashboardCertificate";
-import DashboardDeviceDriver from "./pages/DashboardDeviceDriver";
-import DashboardCommissionPlan from "./pages/DashboardCommissionPlan";
-import ImpersonatePage from "./pages/ImpersonatePage";
-import DashboardSupport from "./pages/DashboardSupport";
-import NotFound from "./pages/NotFound";
+import PageLoader from "@/components/PageLoader";
+
+const LandingPage = lazy(() => import("./pages/LandingPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const ServicesIndexPage = lazy(() => import("./pages/ServicesIndexPage"));
+const ServiceDetailPage = lazy(() => import("./pages/ServiceDetailPage"));
+const BlogsPage = lazy(() => import("./pages/BlogsPage"));
+const RefundPolicyPage = lazy(() => import("./pages/RefundPolicyPage"));
+const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
+const TermsPage = lazy(() => import("./pages/TermsPage"));
+const UnauthorizedPage = lazy(() => import("./pages/UnauthorizedPage"));
+const BootstrapAdminPage = lazy(() => import("./pages/BootstrapAdminPage"));
+const ImpersonatePage = lazy(() => import("./pages/ImpersonatePage"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+const DashboardLayout = lazy(() => import("./components/DashboardLayout"));
+const DashboardOverview = lazy(() => import("./pages/DashboardOverview"));
+const DashboardUsers = lazy(() => import("./pages/DashboardUsers"));
+const DashboardWallet = lazy(() => import("./pages/DashboardWallet"));
+const DashboardFundRequests = lazy(() => import("./pages/DashboardFundRequests"));
+const DashboardTransactions = lazy(() => import("./pages/DashboardTransactions"));
+
+const DashboardAEPS = lazy(() => import("./pages/DashboardAEPS"));
+const DashboardDMT = lazy(() => import("./pages/DashboardDMT"));
+const DashboardBBPS = lazy(() => import("./pages/DashboardBBPS"));
+const DashboardPAN = lazy(() => import("./pages/DashboardPAN"));
+const DashboardRecharge = lazy(() => import("./pages/DashboardRecharge"));
+const DashboardLoan = lazy(() => import("./pages/DashboardLoan"));
+const DashboardCreditCard = lazy(() => import("./pages/DashboardCreditCard"));
+const DashboardCCBillPay = lazy(() => import("./pages/DashboardCCBillPay"));
+const DashboardPayout = lazy(() => import("./pages/DashboardPayout"));
+const DashboardMATM = lazy(() => import("./pages/DashboardMATM"));
+const DashboardBankAccount = lazy(() => import("./pages/DashboardBankAccount"));
+const DashboardPPIWallet = lazy(() => import("./pages/DashboardPPIWallet"));
+const DashboardTravelBooking = lazy(() => import("./pages/DashboardTravelBooking"));
+const DashboardTravelPackage = lazy(() => import("./pages/DashboardTravelPackage"));
+const DashboardInsurance = lazy(() => import("./pages/DashboardInsurance"));
+const DashboardPG = lazy(() => import("./pages/DashboardPG"));
+const DashboardPOS = lazy(() => import("./pages/DashboardPOS"));
+const DashboardSoundBox = lazy(() => import("./pages/DashboardSoundBox"));
+
+const DashboardCommissions = lazy(() => import("./pages/DashboardCommissions"));
+const DashboardKYC = lazy(() => import("./pages/DashboardKYC"));
+const DashboardReports = lazy(() => import("./pages/DashboardReports"));
+const DashboardStaffManagement = lazy(() => import("./pages/DashboardStaffManagement"));
+const DashboardServiceManagement = lazy(() => import("./pages/DashboardServiceManagement"));
+const DashboardSecurity = lazy(() => import("./pages/DashboardSecurity"));
+const DashboardSettings = lazy(() => import("./pages/DashboardSettings"));
+
+const DashboardProfile = lazy(() => import("./pages/DashboardProfile"));
+const DashboardTpin = lazy(() => import("./pages/DashboardTpin"));
+const DashboardChangePassword = lazy(() => import("./pages/DashboardChangePassword"));
+const DashboardCertificate = lazy(() => import("./pages/DashboardCertificate"));
+const DashboardDeviceDriver = lazy(() => import("./pages/DashboardDeviceDriver"));
+const DashboardCommissionPlan = lazy(() => import("./pages/DashboardCommissionPlan"));
+const DashboardSupport = lazy(() => import("./pages/DashboardSupport"));
 
 const queryClient = new QueryClient();
+
+const suspense = (node: React.ReactNode, label?: string) => (
+  <Suspense fallback={<PageLoader label={label} />}>
+    {node}
+  </Suspense>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AuthProvider>
           <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/bootstrap" element={<BootstrapAdminPage />} />
-            <Route path="/unauthorized" element={<UnauthorizedPage />} />
-            <Route path="/impersonate" element={<ImpersonatePage />} />
+            <Route path="/" element={suspense(<LandingPage />, "Loading...")} />
+            <Route path="/login" element={suspense(<LoginPage />, "Loading login...")} />
+            <Route path="/services" element={suspense(<ServicesIndexPage />, "Loading services...")} />
+            <Route path="/services/:serviceKey" element={suspense(<ServiceDetailPage />, "Loading...")} />
+            <Route path="/blogs" element={suspense(<BlogsPage />, "Loading...")} />
+            <Route path="/refund-policy" element={suspense(<RefundPolicyPage />, "Loading...")} />
+            <Route path="/privacy-policy" element={suspense(<PrivacyPolicyPage />, "Loading...")} />
+            <Route path="/terms" element={suspense(<TermsPage />, "Loading...")} />
+            <Route path="/bootstrap" element={suspense(<BootstrapAdminPage />, "Loading...")} />
+            <Route path="/unauthorized" element={suspense(<UnauthorizedPage />, "Loading...")} />
+            <Route path="/impersonate" element={suspense(<ImpersonatePage />, "Setting up session...")} />
             <Route
               path="/dashboard"
               element={
                 <ProtectedRoute>
-                  <DashboardLayout />
+                  {suspense(<DashboardLayout />, "Loading dashboard...")}
                 </ProtectedRoute>
               }
             >
-              <Route index element={<DashboardOverview />} />
-              <Route path="users" element={<ProtectedRoute minRole="master_distributor"><DashboardUsers /></ProtectedRoute>} />
-              <Route path="wallet" element={<DashboardWallet />} />
-              <Route path="fund-requests" element={<DashboardFundRequests />} />
-              <Route path="transactions" element={<DashboardTransactions />} />
+              <Route index element={suspense(<DashboardOverview />, "Loading...")} />
+              <Route path="users" element={<ProtectedRoute minRole="master_distributor">{suspense(<DashboardUsers />, "Loading users...")}</ProtectedRoute>} />
+              <Route path="wallet" element={suspense(<DashboardWallet />, "Loading wallet...")} />
+              <Route path="fund-requests" element={suspense(<DashboardFundRequests />, "Loading...")} />
+              <Route path="transactions" element={suspense(<DashboardTransactions />, "Loading...")} />
               {/* Services */}
-              <Route path="aeps" element={<DashboardAEPS />} />
-              <Route path="bbps" element={<DashboardBBPS />} />
-              <Route path="dmt" element={<DashboardDMT />} />
-              <Route path="recharge" element={<DashboardRecharge />} />
-              <Route path="loan" element={<DashboardLoan />} />
-              <Route path="credit-card" element={<DashboardCreditCard />} />
-              <Route path="cc-bill-pay" element={<DashboardCCBillPay />} />
-              <Route path="payout" element={<DashboardPayout />} />
-              <Route path="matm" element={<DashboardMATM />} />
-              <Route path="bank-account" element={<DashboardBankAccount />} />
-              <Route path="pan" element={<DashboardPAN />} />
-              <Route path="ppi-wallet" element={<DashboardPPIWallet />} />
-              <Route path="travel-booking" element={<DashboardTravelBooking />} />
-              <Route path="travel-package" element={<DashboardTravelPackage />} />
-              <Route path="insurance" element={<DashboardInsurance />} />
-              <Route path="pg" element={<DashboardPG />} />
-              <Route path="pos" element={<DashboardPOS />} />
-              <Route path="sound-box" element={<DashboardSoundBox />} />
+              <Route path="aeps" element={suspense(<DashboardAEPS />, "Loading...")} />
+              <Route path="bbps" element={suspense(<DashboardBBPS />, "Loading...")} />
+              <Route path="dmt" element={suspense(<DashboardDMT />, "Loading...")} />
+              <Route path="recharge" element={suspense(<DashboardRecharge />, "Loading...")} />
+              <Route path="loan" element={suspense(<DashboardLoan />, "Loading...")} />
+              <Route path="credit-card" element={suspense(<DashboardCreditCard />, "Loading...")} />
+              <Route path="cc-bill-pay" element={suspense(<DashboardCCBillPay />, "Loading...")} />
+              <Route path="payout" element={suspense(<DashboardPayout />, "Loading...")} />
+              <Route path="matm" element={suspense(<DashboardMATM />, "Loading...")} />
+              <Route path="bank-account" element={suspense(<DashboardBankAccount />, "Loading...")} />
+              <Route path="pan" element={suspense(<DashboardPAN />, "Loading...")} />
+              <Route path="ppi-wallet" element={suspense(<DashboardPPIWallet />, "Loading...")} />
+              <Route path="travel-booking" element={suspense(<DashboardTravelBooking />, "Loading...")} />
+              <Route path="travel-package" element={suspense(<DashboardTravelPackage />, "Loading...")} />
+              <Route path="insurance" element={suspense(<DashboardInsurance />, "Loading...")} />
+              <Route path="pg" element={suspense(<DashboardPG />, "Loading...")} />
+              <Route path="pos" element={suspense(<DashboardPOS />, "Loading...")} />
+              <Route path="sound-box" element={suspense(<DashboardSoundBox />, "Loading...")} />
               {/* Management */}
-              <Route path="commissions" element={<ProtectedRoute minRole="distributor"><DashboardCommissions /></ProtectedRoute>} />
-              <Route path="kyc" element={<ProtectedRoute minRole="distributor"><DashboardKYC /></ProtectedRoute>} />
-              <Route path="reports" element={<DashboardReports />} />
-              <Route path="staff-management" element={<ProtectedRoute allowedRoles={["admin"]}><DashboardStaffManagement /></ProtectedRoute>} />
-              <Route path="service-management" element={<ProtectedRoute allowedRoles={["admin"]}><DashboardServiceManagement /></ProtectedRoute>} />
-              <Route path="security" element={<ProtectedRoute allowedRoles={["admin"]}><DashboardSecurity /></ProtectedRoute>} />
-              <Route path="settings" element={<ProtectedRoute allowedRoles={["admin"]}><DashboardSettings /></ProtectedRoute>} />
+              <Route path="commissions" element={<ProtectedRoute minRole="distributor">{suspense(<DashboardCommissions />, "Loading...")}</ProtectedRoute>} />
+              <Route path="kyc" element={<ProtectedRoute minRole="distributor">{suspense(<DashboardKYC />, "Loading...")}</ProtectedRoute>} />
+              <Route path="reports" element={suspense(<DashboardReports />, "Loading...")} />
+              <Route path="staff-management" element={<ProtectedRoute allowedRoles={["admin"]}>{suspense(<DashboardStaffManagement />, "Loading...")}</ProtectedRoute>} />
+              <Route path="service-management" element={<ProtectedRoute allowedRoles={["admin"]}>{suspense(<DashboardServiceManagement />, "Loading...")}</ProtectedRoute>} />
+              <Route path="security" element={<ProtectedRoute allowedRoles={["admin"]}>{suspense(<DashboardSecurity />, "Loading...")}</ProtectedRoute>} />
+              <Route path="settings" element={<ProtectedRoute allowedRoles={["admin"]}>{suspense(<DashboardSettings />, "Loading...")}</ProtectedRoute>} />
               {/* User Settings (non-admin) */}
-              <Route path="commission-plan" element={<DashboardCommissionPlan />} />
-              <Route path="profile" element={<DashboardProfile />} />
-              <Route path="tpin" element={<DashboardTpin />} />
-              <Route path="change-password" element={<DashboardChangePassword />} />
-              <Route path="certificate" element={<DashboardCertificate />} />
-              <Route path="device-driver" element={<DashboardDeviceDriver />} />
-              <Route path="support" element={<DashboardSupport />} />
+              <Route path="commission-plan" element={suspense(<DashboardCommissionPlan />, "Loading...")} />
+              <Route path="profile" element={suspense(<DashboardProfile />, "Loading...")} />
+              <Route path="tpin" element={suspense(<DashboardTpin />, "Loading...")} />
+              <Route path="change-password" element={suspense(<DashboardChangePassword />, "Loading...")} />
+              <Route path="certificate" element={suspense(<DashboardCertificate />, "Loading...")} />
+              <Route path="device-driver" element={suspense(<DashboardDeviceDriver />, "Loading...")} />
+              <Route path="support" element={suspense(<DashboardSupport />, "Loading...")} />
             </Route>
-            <Route path="*" element={<NotFound />} />
+            <Route path="*" element={suspense(<NotFound />, "Loading...")} />
           </Routes>
         </AuthProvider>
       </BrowserRouter>

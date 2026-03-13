@@ -1,20 +1,24 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Zap, Eye, EyeOff, LogIn, ArrowLeft, KeyRound, ShieldCheck, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { apiFetch, setAuthSession } from "@/services/api";
+import usePageTitle from "@/hooks/usePageTitle";
 
 type ForgotStep = "idle" | "identity" | "otp" | "new_password" | "done";
 
 export default function LoginPage() {
+  usePageTitle("AbheePay | Login");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
 
   // Forgot password state
@@ -33,12 +37,22 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) {
-      toast({ title: "Login failed", description: error.message, variant: "destructive" });
-    } else {
-      navigate("/dashboard");
+    try {
+      const data = await apiFetch("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
+      setAuthSession(data.access_token, data.user);
+      const next = searchParams.get("next");
+      if (next && next.startsWith("/") && !next.startsWith("//")) {
+        navigate(next);
+      } else {
+        navigate("/dashboard");
+      }
+    } catch (err: any) {
+      toast({ title: "Login failed", description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -50,13 +64,14 @@ export default function LoginPage() {
     }
     setFpLoading(true);
     try {
-      const res = await supabase.functions.invoke("forgot-password", {
-        body: { action: "verify_identity", email: fpEmail, aadhaar_last4: fpAadhaarLast4 },
+      const res = await apiFetch("/auth/forgot-password", {
+        method: "POST",
+        body: JSON.stringify({ action: "verify_identity", email: fpEmail, aadhaar_last4: fpAadhaarLast4 }),
       });
-      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
+      if (res.error) throw new Error(res.error);
       // For demo, show OTP hint
-      if (res.data?._demo_otp) setFpDemoOtp(res.data._demo_otp);
-      toast({ title: "OTP Sent", description: res.data?.otp_hint || "Check your registered email for OTP." });
+      if (res?._demo_otp) setFpDemoOtp(res._demo_otp);
+      toast({ title: "OTP Sent", description: res?.otp_hint || "Check your registered email for OTP." });
       setForgotStep("otp");
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -73,11 +88,12 @@ export default function LoginPage() {
     }
     setFpLoading(true);
     try {
-      const res = await supabase.functions.invoke("forgot-password", {
-        body: { action: "verify_otp", email: fpEmail, otp: fpOtp },
+      const res = await apiFetch("/auth/forgot-password", {
+        method: "POST",
+        body: JSON.stringify({ action: "verify_otp", email: fpEmail, otp: fpOtp }),
       });
-      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
-      setFpResetToken(res.data.reset_token);
+      if (res.error) throw new Error(res.error);
+      setFpResetToken(res.reset_token);
       toast({ title: "OTP Verified", description: "You can now set a new password." });
       setForgotStep("new_password");
     } catch (err: any) {
@@ -99,10 +115,11 @@ export default function LoginPage() {
     }
     setFpLoading(true);
     try {
-      const res = await supabase.functions.invoke("forgot-password", {
-        body: { action: "reset_password", email: fpEmail, reset_token: fpResetToken, new_password: fpNewPassword },
+      const res = await apiFetch("/auth/forgot-password", {
+        method: "POST",
+        body: JSON.stringify({ action: "reset_password", email: fpEmail, reset_token: fpResetToken, new_password: fpNewPassword }),
       });
-      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
+      if (res.error) throw new Error(res.error);
       toast({ title: "Password Reset!", description: "You can now login with your new password." });
       setForgotStep("done");
     } catch (err: any) {
@@ -273,7 +290,7 @@ export default function LoginPage() {
             <img
               src="https://pos.abheepay.com/assets/FORMAT-PNG-Lj3U1uY2.png"
               alt="ABHEEPAY"
-              className="h-12 w-auto"
+              className="h-14 w-auto"
             />
           </Link>
           <p className="text-muted-foreground text-sm">

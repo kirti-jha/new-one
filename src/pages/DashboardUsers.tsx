@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Users, Search, UserPlus, CheckCircle2, XCircle, Clock,
@@ -15,6 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { apiFetch } from "@/services/api";
+import { useToast } from "@/hooks/use-toast";
+import { uploadFileToBackend } from "@/services/files";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -211,14 +212,13 @@ export default function DashboardUsers() {
   };
 
   const uploadDocImage = async (userId: string, file: File, docType: string): Promise<string | null> => {
-    const ext = file.name.split(".").pop();
-    const path = `${userId}/${docType}_${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("user-documents").upload(path, file);
-    if (error) {
+    try {
+      const uploaded = await uploadFileToBackend(file, `user-documents/${userId}/${docType}`);
+      return uploaded?.filePath || null;
+    } catch (error) {
       console.error("Upload error:", error);
       return null;
     }
-    return path;
   };
 
   const handleCreate = async () => {
@@ -248,7 +248,8 @@ export default function DashboardUsers() {
         }),
       });
 
-      const newUserId = res.data.user.id;
+      const newUserId = res?.user?.id || res?.data?.user?.id;
+      if (!newUserId) throw new Error("Failed to read new user id from response");
 
       // Upload images if provided (using admin's session — RLS allows admins)
       let aadhaarPath: string | null = null;
@@ -261,12 +262,16 @@ export default function DashboardUsers() {
         panPath = await uploadDocImage(newUserId, formPanFile, "pan");
       }
 
-      // Update profile with image paths if uploaded
       if (aadhaarPath || panPath) {
-        const updateData: Record<string, string> = {};
-        if (aadhaarPath) updateData.aadhaar_image_path = aadhaarPath;
-        if (panPath) updateData.pan_image_path = panPath;
-        await supabase.from("profiles").update(updateData).eq("user_id", newUserId);
+        await apiFetch("/users/manage", {
+          method: "POST",
+          body: JSON.stringify({
+            action: "update_documents",
+            target_user_id: newUserId,
+            ...(aadhaarPath ? { aadhaar_image_path: aadhaarPath } : {}),
+            ...(panPath ? { pan_image_path: panPath } : {}),
+          }),
+        });
       }
 
       toast({ title: "User created!", description: `${formName} added as ${ROLE_LABELS[formRole as AppRole]}.` });
@@ -324,13 +329,14 @@ export default function DashboardUsers() {
         body: JSON.stringify({ action: "impersonate", target_user_id: u.user_id }),
       });
 
-      const { access_token, refresh_token } = res;
-      if (!access_token || !refresh_token) throw new Error("Failed to get session tokens");
+      const { access_token, user_id, email } = res;
+      if (!access_token) throw new Error("Failed to get impersonation token");
 
       // Open impersonated session in a NEW tab, keeping admin session intact
       const params = new URLSearchParams({
         access_token,
-        refresh_token,
+        user_id: user_id || u.user_id,
+        email: email || "",
         name: u.full_name || "User",
       });
       window.open(`${window.location.origin}/impersonate?${params.toString()}`, "_blank");

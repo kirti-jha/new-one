@@ -1,17 +1,17 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  UserPlus, Users, ShieldCheck, Shield, Pencil, Save, X, ToggleLeft, ToggleRight,
+  UserPlus, Users, ShieldCheck, Shield, Pencil, ToggleLeft, ToggleRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { apiFetch } from "@/services/api";
 
 interface StaffAdmin {
   user_id: string;
@@ -40,12 +40,11 @@ const PERMISSION_LABELS: { key: string; label: string; desc: string; critical?: 
 ];
 
 export default function DashboardStaffManagement() {
-  const { user, isMasterAdmin } = useAuth();
+  const { isMasterAdmin } = useAuth();
   const { toast } = useToast();
   const [admins, setAdmins] = useState<StaffAdmin[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Create staff admin dialog
   const [createOpen, setCreateOpen] = useState(false);
   const [formEmail, setFormEmail] = useState("");
   const [formPassword, setFormPassword] = useState("");
@@ -62,7 +61,6 @@ export default function DashboardStaffManagement() {
   });
   const [creating, setCreating] = useState(false);
 
-  // Edit permissions dialog
   const [editOpen, setEditOpen] = useState(false);
   const [editAdmin, setEditAdmin] = useState<StaffAdmin | null>(null);
   const [editPerms, setEditPerms] = useState<Record<string, boolean>>({});
@@ -70,65 +68,50 @@ export default function DashboardStaffManagement() {
 
   const fetchAdmins = useCallback(async () => {
     setLoading(true);
-    // Get all admin users
-    const { data: roles } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
-    if (!roles || roles.length === 0) { setAdmins([]); setLoading(false); return; }
+    try {
+      const data = await apiFetch("/staff/admins");
+      setAdmins((data || []) as StaffAdmin[]);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+      setAdmins([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
 
-    const adminIds = roles.map((r: any) => r.user_id);
-    const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, is_master_admin").in("user_id", adminIds);
-    const { data: perms } = await supabase.from("staff_permissions").select("*").in("user_id", adminIds);
-
-    const permMap = new Map((perms || []).map((p: any) => [p.user_id, p]));
-
-    const list: StaffAdmin[] = (profiles || []).map((p: any) => ({
-      user_id: p.user_id,
-      full_name: p.full_name,
-      is_master_admin: p.is_master_admin || false,
-      permissions: permMap.get(p.user_id) || null,
-    }));
-
-    // Sort: master admin first
-    list.sort((a, b) => (b.is_master_admin ? 1 : 0) - (a.is_master_admin ? 1 : 0));
-    setAdmins(list);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { fetchAdmins(); }, [fetchAdmins]);
+  useEffect(() => {
+    fetchAdmins();
+  }, [fetchAdmins]);
 
   const handleCreateStaff = async () => {
-    if (!formEmail || !formPassword || !formName || !user) {
-      toast({ title: "Fill all required fields", variant: "destructive" }); return;
+    if (!formEmail || !formPassword || !formName) {
+      toast({ title: "Fill all required fields", variant: "destructive" });
+      return;
     }
     if (formPassword.length < 6) {
-      toast({ title: "Password min 6 characters", variant: "destructive" }); return;
+      toast({ title: "Password min 6 characters", variant: "destructive" });
+      return;
     }
+
     setCreating(true);
     try {
-      // Create admin user via create-user function
-      const res = await supabase.functions.invoke("create-user", {
-        body: {
-          email: formEmail.trim(), password: formPassword, full_name: formName.trim(),
-          phone: formPhone.trim() || null, role: "admin",
-        },
-      });
-      // The create-user function only allows non-admin roles, so we need a different approach
-      // Actually let's check — it validates against ["super_distributor", "master_distributor", "distributor", "retailer"]
-      // We need to update create-user to allow admin creation by master admin, or use a separate flow
-
-      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
-
-      const newUserId = res.data.user.id;
-
-      // Save staff permissions
-      await supabase.from("staff_permissions").insert({
-        user_id: newUserId,
-        granted_by: user.id,
-        ...formPerms,
+      await apiFetch("/staff/admins", {
+        method: "POST",
+        body: JSON.stringify({
+          email: formEmail.trim(),
+          password: formPassword,
+          full_name: formName.trim(),
+          phone: formPhone.trim() || null,
+          permissions: formPerms,
+        }),
       });
 
-      toast({ title: "Staff admin created!", description: `${formName} added as staff admin.` });
+      toast({ title: "Staff admin created", description: `${formName} added as staff admin.` });
       setCreateOpen(false);
-      setFormEmail(""); setFormPassword(""); setFormName(""); setFormPhone("");
+      setFormEmail("");
+      setFormPassword("");
+      setFormName("");
+      setFormPhone("");
       fetchAdmins();
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -139,34 +122,38 @@ export default function DashboardStaffManagement() {
 
   const openEditPerms = (admin: StaffAdmin) => {
     setEditAdmin(admin);
-    setEditPerms(admin.permissions ? {
-      can_manage_users: admin.permissions.can_manage_users,
-      can_manage_finances: admin.permissions.can_manage_finances,
-      can_manage_commissions: admin.permissions.can_manage_commissions,
-      can_manage_services: admin.permissions.can_manage_services,
-      can_manage_settings: admin.permissions.can_manage_settings,
-      can_manage_security: admin.permissions.can_manage_security,
-      can_view_reports: admin.permissions.can_view_reports,
-    } : {
-      can_manage_users: true, can_manage_finances: true, can_manage_commissions: true,
-      can_manage_services: true, can_manage_settings: false, can_manage_security: false, can_view_reports: true,
-    });
+    setEditPerms(
+      admin.permissions
+        ? {
+            can_manage_users: admin.permissions.can_manage_users,
+            can_manage_finances: admin.permissions.can_manage_finances,
+            can_manage_commissions: admin.permissions.can_manage_commissions,
+            can_manage_services: admin.permissions.can_manage_services,
+            can_manage_settings: admin.permissions.can_manage_settings,
+            can_manage_security: admin.permissions.can_manage_security,
+            can_view_reports: admin.permissions.can_view_reports,
+          }
+        : {
+            can_manage_users: true,
+            can_manage_finances: true,
+            can_manage_commissions: true,
+            can_manage_services: true,
+            can_manage_settings: false,
+            can_manage_security: false,
+            can_view_reports: true,
+          }
+    );
     setEditOpen(true);
   };
 
   const handleSavePerms = async () => {
-    if (!editAdmin || !user) return;
+    if (!editAdmin) return;
     setSaving(true);
     try {
-      if (editAdmin.permissions?.id) {
-        const { error } = await supabase.from("staff_permissions").update(editPerms).eq("id", editAdmin.permissions.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("staff_permissions").insert({
-          user_id: editAdmin.user_id, granted_by: user.id, ...editPerms,
-        });
-        if (error) throw error;
-      }
+      await apiFetch(`/staff/permissions/${editAdmin.user_id}`, {
+        method: "PATCH",
+        body: JSON.stringify(editPerms),
+      });
       toast({ title: "Permissions updated" });
       setEditOpen(false);
       fetchAdmins();
@@ -201,59 +188,64 @@ export default function DashboardStaffManagement() {
         </Button>
       </div>
 
-      {/* Staff List */}
       <div className="grid gap-4">
         {loading ? (
           <div className="text-center py-10 text-muted-foreground">Loading...</div>
         ) : admins.length === 0 ? (
           <div className="text-center py-10 text-muted-foreground">No admin accounts found.</div>
-        ) : admins.map((admin) => (
-          <Card key={admin.user_id}>
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    {admin.is_master_admin ? <ShieldCheck className="w-5 h-5 text-primary" /> : <Users className="w-5 h-5 text-muted-foreground" />}
-                  </div>
-                  <div>
-                    <div className="font-heading font-semibold text-foreground">{admin.full_name}</div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      {admin.is_master_admin ? (
-                        <Badge className="bg-primary/10 text-primary text-xs">Master Admin</Badge>
-                      ) : (
-                        <Badge variant="secondary" className="text-xs">Staff Admin</Badge>
-                      )}
+        ) : (
+          admins.map((admin) => (
+            <Card key={admin.user_id}>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      {admin.is_master_admin ? <ShieldCheck className="w-5 h-5 text-primary" /> : <Users className="w-5 h-5 text-muted-foreground" />}
+                    </div>
+                    <div>
+                      <div className="font-heading font-semibold text-foreground">{admin.full_name}</div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {admin.is_master_admin ? (
+                          <Badge className="bg-primary/10 text-primary text-xs">Master Admin</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">Staff Admin</Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
+                  {!admin.is_master_admin && (
+                    <Button variant="outline" size="sm" onClick={() => openEditPerms(admin)}>
+                      <Pencil className="w-4 h-4 mr-1" /> Edit Permissions
+                    </Button>
+                  )}
                 </div>
-                {!admin.is_master_admin && (
-                  <Button variant="outline" size="sm" onClick={() => openEditPerms(admin)}>
-                    <Pencil className="w-4 h-4 mr-1" /> Edit Permissions
-                  </Button>
-                )}
-              </div>
 
-              {admin.is_master_admin ? (
-                <p className="text-xs text-muted-foreground">Full access to all features. Cannot be restricted.</p>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {PERMISSION_LABELS.map((p) => {
-                    const enabled = admin.permissions ? (admin.permissions as any)[p.key] : true;
-                    return (
-                      <span key={p.key} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${enabled ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>
-                        {enabled ? <ToggleRight className="w-3 h-3" /> : <ToggleLeft className="w-3 h-3" />}
-                        {p.label}
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+                {admin.is_master_admin ? (
+                  <p className="text-xs text-muted-foreground">Full access to all features. Cannot be restricted.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {PERMISSION_LABELS.map((p) => {
+                      const enabled = admin.permissions ? (admin.permissions as any)[p.key] : true;
+                      return (
+                        <span
+                          key={p.key}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
+                            enabled ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
+                          }`}
+                        >
+                          {enabled ? <ToggleRight className="w-3 h-3" /> : <ToggleLeft className="w-3 h-3" />}
+                          {p.label}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
 
-      {/* Create Staff Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
@@ -275,7 +267,7 @@ export default function DashboardStaffManagement() {
                   <div>
                     <div className="text-sm font-medium text-foreground">{p.label}</div>
                     <div className="text-xs text-muted-foreground">{p.desc}</div>
-                    {p.critical && <div className="text-[10px] text-destructive font-medium mt-0.5">⚠️ Critical permission</div>}
+                    {p.critical && <div className="text-[10px] text-destructive font-medium mt-0.5">Critical permission</div>}
                   </div>
                   <Switch checked={formPerms[p.key] || false} onCheckedChange={(v) => setFormPerms({ ...formPerms, [p.key]: v })} />
                 </div>
@@ -290,7 +282,6 @@ export default function DashboardStaffManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Permissions Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader>
@@ -303,7 +294,7 @@ export default function DashboardStaffManagement() {
                 <div>
                   <div className="text-sm font-medium text-foreground">{p.label}</div>
                   <div className="text-xs text-muted-foreground">{p.desc}</div>
-                  {p.critical && <div className="text-[10px] text-destructive font-medium mt-0.5">⚠️ Critical</div>}
+                  {p.critical && <div className="text-[10px] text-destructive font-medium mt-0.5">Critical</div>}
                 </div>
                 <Switch checked={editPerms[p.key] || false} onCheckedChange={(v) => setEditPerms({ ...editPerms, [p.key]: v })} />
               </div>

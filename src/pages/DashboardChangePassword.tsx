@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Lock, Eye, EyeOff, CheckCircle2 } from "lucide-react";
+import { apiFetch } from "@/services/api";
 
 export default function DashboardChangePassword() {
   const { user } = useAuth();
@@ -36,22 +36,13 @@ export default function DashboardChangePassword() {
 
     setLoading(true);
     try {
-      // Verify current password by re-authenticating
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user?.email || "",
-        password: currentPassword,
+      await apiFetch("/auth/change-password", {
+        method: "POST",
+        body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword,
+        }),
       });
-      if (signInError) {
-        toast({ title: "Incorrect current password", description: "Please enter your correct current password.", variant: "destructive" });
-        setLoading(false);
-        return;
-      }
-
-      // Update password
-      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
-      if (updateError) {
-        throw updateError;
-      }
 
       toast({ title: "Password changed!", description: "Your password has been updated successfully." });
       setCurrentPassword("");

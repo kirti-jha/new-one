@@ -3,8 +3,9 @@ import {
   TrendingUp, Fingerprint, Send, Receipt, Smartphone, CheckCircle2, Clock, XCircle,
   Zap, CreditCard, FileText, Banknote, AlertTriangle, ShieldCheck,
   Landmark, Shield, Globe, Package, Plane, Heart, QrCode, Wifi,
-  MonitorSmartphone, BadgeIndianRupee, HandCoins, Volume2,
+  MonitorSmartphone, BadgeIndianRupee, HandCoins, Volume2, Loader2,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

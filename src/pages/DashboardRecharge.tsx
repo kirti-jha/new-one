@@ -38,6 +38,7 @@ interface RechargeTxn {
 
 export default function DashboardRecharge() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [tab, setTab] = useState("mobile");
   const [selectedPlan, setSelectedPlan] = useState<number | null>(null);
   const [tpinOpen, setTpinOpen] = useState(false);

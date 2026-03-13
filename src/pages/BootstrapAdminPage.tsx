@@ -1,13 +1,16 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Zap, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, Link } from "react-router-dom";
+import { apiFetch } from "@/services/api";
+import usePageTitle from "@/hooks/usePageTitle";
 
 export default function BootstrapAdminPage() {
+  usePageTitle("AbheePay | Bootstrap Admin");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -20,12 +23,11 @@ export default function BootstrapAdminPage() {
     if (!email || !password || !fullName) return;
     setLoading(true);
     try {
-      const res = await supabase.functions.invoke("bootstrap-admin", {
-        body: { email, password, full_name: fullName, secret: "abheepay-bootstrap-2026" },
+      const res = await apiFetch("/auth/bootstrap-admin", {
+        method: "POST",
+        body: JSON.stringify({ email, password, full_name: fullName, secret: "abheepay-bootstrap-2026" }),
       });
-      if (res.error || res.data?.error) {
-        throw new Error(res.data?.error || res.error?.message);
-      }
+      if (res.error) throw new Error(res.error);
       toast({ title: "Admin created!", description: "You can now log in with these credentials." });
       navigate("/login");
     } catch (err: any) {

@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiFetch } from "@/services/api";
 import {
@@ -24,9 +24,14 @@ interface BankAccount {
 const settingsTabs = ["General", "Bank Accounts", "Notifications", "API & Integrations"] as const;
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, isMasterAdmin, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<string>("General");
+  const [profileName, setProfileName] = useState("");
+  const [profilePhone, setProfilePhone] = useState("");
+  const [profileBusiness, setProfileBusiness] = useState("");
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [seedingMocks, setSeedingMocks] = useState(false);
 
   // Bank accounts
   const [banks, setBanks] = useState<BankAccount[]>([]);
@@ -63,6 +68,21 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => { if (activeTab === "Bank Accounts") fetchBanks(); }, [activeTab, fetchBanks]);
+  useEffect(() => {
+    if (activeTab !== "General") return;
+    const loadProfile = async () => {
+      try {
+        const data = await apiFetch("/auth/me");
+        const p = data?.profile || {};
+        setProfileName(p.fullName || "");
+        setProfilePhone(p.phone || "");
+        setProfileBusiness(p.businessName || "");
+      } catch (err) {
+        console.error("Error loading admin profile:", err);
+      }
+    };
+    loadProfile();
+  }, [activeTab]);
 
   const openAddBank = () => {
     setEditBank(null); setBankName(""); setAcctName(""); setAcctNumber(""); setIfsc(""); setUpiId("");
@@ -117,6 +137,41 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSaveProfile = async () => {
+    setProfileSaving(true);
+    try {
+      await apiFetch("/users/profile", {
+        method: "PATCH",
+        body: JSON.stringify({
+          full_name: profileName.trim(),
+          phone: profilePhone.trim() || null,
+          business_name: profileBusiness.trim() || null,
+        }),
+      });
+      await refreshProfile();
+      toast({ title: "Profile updated", description: "Admin profile details saved successfully." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  const handleSeedMocks = async () => {
+    setSeedingMocks(true);
+    try {
+      const res = await apiFetch("/users/seed-mock-hierarchy", { method: "POST" });
+      toast({
+        title: "Mock users seeded",
+        description: `${res.created_count || 0} users created. Password: ${res.password_for_all_new_users || "Test@12345"}`,
+      });
+    } catch (err: any) {
+      toast({ title: "Seed failed", description: err.message, variant: "destructive" });
+    } finally {
+      setSeedingMocks(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -136,6 +191,16 @@ export default function SettingsPage() {
       {activeTab === "General" && (
         <div className="grid lg:grid-cols-2 gap-6">
           <div className="rounded-xl bg-gradient-card border border-border p-6 space-y-4">
+            <div className="flex items-center gap-2 mb-2"><Settings className="w-5 h-5 text-primary" /><h2 className="font-heading font-semibold text-foreground">Admin Profile</h2></div>
+            <div><Label>Full Name</Label><Input value={profileName} onChange={(e) => setProfileName(e.target.value)} className="bg-secondary/50 mt-1" /></div>
+            <div><Label>Phone</Label><Input value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)} className="bg-secondary/50 mt-1" /></div>
+            <div><Label>Business Name</Label><Input value={profileBusiness} onChange={(e) => setProfileBusiness(e.target.value)} className="bg-secondary/50 mt-1" /></div>
+            <Button onClick={handleSaveProfile} disabled={profileSaving} className="bg-gradient-primary text-primary-foreground font-semibold">
+              <Save className="w-4 h-4 mr-1" /> {profileSaving ? "Saving..." : "Save Profile"}
+            </Button>
+          </div>
+
+          <div className="rounded-xl bg-gradient-card border border-border p-6 space-y-4">
             <div className="flex items-center gap-2 mb-2"><Globe className="w-5 h-5 text-primary" /><h2 className="font-heading font-semibold text-foreground">Platform Info</h2></div>
             <div><Label>Platform Name</Label><Input defaultValue="Abheepay" className="bg-secondary/50 mt-1" /></div>
             <div><Label>Support Email</Label><Input defaultValue="support@abheepay.com" className="bg-secondary/50 mt-1" /></div>
@@ -151,6 +216,18 @@ export default function SettingsPage() {
             <div><Label>Min Wallet Balance Alert</Label><Input defaultValue="1000" type="number" className="bg-secondary/50 mt-1" /></div>
             <Button className="bg-gradient-primary text-primary-foreground font-semibold"><Save className="w-4 h-4 mr-1" /> Save Limits</Button>
           </div>
+
+          {isMasterAdmin && (
+            <div className="rounded-xl bg-gradient-card border border-border p-6 space-y-4 lg:col-span-2">
+              <div className="flex items-center gap-2 mb-2"><Plus className="w-5 h-5 text-primary" /><h2 className="font-heading font-semibold text-foreground">Testing Tools</h2></div>
+              <p className="text-sm text-muted-foreground">
+                Seed mock users for all hierarchy levels (super distributor to retailer) so every dashboard can be tested quickly.
+              </p>
+              <Button onClick={handleSeedMocks} disabled={seedingMocks} className="bg-gradient-primary text-primary-foreground font-semibold">
+                {seedingMocks ? "Seeding..." : "Seed Mock Hierarchy Users"}
+              </Button>
+            </div>
+          )}
         </div>
       )}
 

@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Bell, Check, CheckCheck, Wallet, UserPlus, ShieldAlert, KeyRound, Ban, Settings2, FileText, Banknote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { apiFetch } from "@/services/api";
 
 interface Notification {
   id: string;

@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+﻿import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Banknote, Plus, Clock, CheckCircle2, XCircle, Send, Eye, MoreVertical,
@@ -106,10 +105,6 @@ export default function DashboardFundRequests() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
 
-  const sendNotification = async (userId: string, title: string, message: string, type: string = "info") => {
-    await supabase.from("notifications").insert({ user_id: userId, title, message, type });
-  };
-
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -172,11 +167,8 @@ export default function DashboardFundRequests() {
       if (reqReceipt) {
         const ext = reqReceipt.name.split(".").pop() || "file";
         receiptPath = `${user.id}/receipt_${Date.now()}.${ext}`;
-        const { error: uploadErr } = await supabase.storage
-          .from("payment-receipts")
-          .upload(receiptPath, reqReceipt);
-        if (uploadErr) throw uploadErr;
         receiptName = reqReceipt.name;
+        toast({ title: "Receipt upload pending", description: "Storage migration to Neon is not enabled yet. Continuing without file upload." });
       }
 
       const res = await apiFetch("/fund-requests", {
@@ -223,24 +215,6 @@ export default function DashboardFundRequests() {
       setRejectionReason("");
       fetchData();
 
-      // Notify the requester about the outcome
-      if (reviewReq) {
-        const { data: requesterProfile } = await supabase
-          .from("profiles")
-          .select("user_id")
-          .eq("user_id", reviewReq.requester_id)
-          .single();
-        if (requesterProfile) {
-          await sendNotification(
-            requesterProfile.user_id,
-            action === "approve" ? "Fund Request Approved ✅" : "Fund Request Rejected ❌",
-            action === "approve"
-              ? `Your fund request of ₹${Number(reviewReq.amount).toLocaleString("en-IN")} has been approved and credited to your wallet.`
-              : `Your fund request of ₹${Number(reviewReq.amount).toLocaleString("en-IN")} was rejected. Reason: ${rejectionReason || "Not specified"}.`,
-            "fund_request"
-          );
-        }
-      }
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -253,9 +227,7 @@ export default function DashboardFundRequests() {
       toast({ title: "No receipt", description: "No receipt was attached.", variant: "destructive" });
       return;
     }
-    const { data } = await supabase.storage.from("payment-receipts").createSignedUrl(req.receipt_path, 300);
-    if (data?.signedUrl) { setPreviewUrl(data.signedUrl); setPreviewOpen(true); }
-    else toast({ title: "Error", description: "Could not load receipt.", variant: "destructive" });
+    toast({ title: "Receipt unavailable", description: "Receipt preview is disabled until storage migration is completed.", variant: "destructive" });
   };
 
   const filtered = requests.filter((r) => {
@@ -274,7 +246,7 @@ export default function DashboardFundRequests() {
     totalAmount: requests.filter((r) => r.status === "approved").reduce((s, r) => s + Number(r.amount), 0),
   };
 
-  const formatINR = (v: number) => `₹${v.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+  const formatINR = (v: number) => `â‚¹${v.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
 
   return (
     <div className="space-y-6">
@@ -339,7 +311,7 @@ export default function DashboardFundRequests() {
       {bankAccounts.length > 0 && (
         <div className="rounded-xl bg-gradient-card border border-border p-5">
           <h3 className="text-sm font-heading font-semibold text-foreground mb-3 flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-primary" /> Company Bank Accounts — Send payment here
+            <Building2 className="w-4 h-4 text-primary" /> Company Bank Accounts â€” Send payment here
           </h3>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {bankAccounts.map((b) => (
@@ -448,14 +420,14 @@ export default function DashboardFundRequests() {
                 <SelectTrigger><SelectValue placeholder="Select bank account" /></SelectTrigger>
                 <SelectContent>
                   {bankAccounts.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>{b.bank_name} — {b.account_number}</SelectItem>
+                    <SelectItem key={b.id} value={b.id}>{b.bank_name} â€” {b.account_number}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Amount (₹) *</Label>
+                <Label>Amount (â‚¹) *</Label>
                 <Input type="number" min={1} placeholder="Enter amount" value={reqAmount} onChange={(e) => setReqAmount(e.target.value)} />
               </div>
               <div className="space-y-2">
@@ -499,7 +471,7 @@ export default function DashboardFundRequests() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Review Fund Request</DialogTitle>
-            <DialogDescription>{reviewReq?.requester_name} — {formatINR(Number(reviewReq?.amount || 0))}</DialogDescription>
+            <DialogDescription>{reviewReq?.requester_name} â€” {formatINR(Number(reviewReq?.amount || 0))}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div className="p-3 rounded-lg bg-secondary/30 border border-border text-xs space-y-1">
@@ -554,3 +526,4 @@ export default function DashboardFundRequests() {
     </div>
   );
 }
+

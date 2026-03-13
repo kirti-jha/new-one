@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { apiFetch } from "@/services/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,12 +28,12 @@ export default function DashboardTpin() {
 
   const checkTpinStatus = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("profiles")
-      .select("tpin_hash")
-      .eq("user_id", user!.id)
-      .single();
-    setHasTpin(!!data?.tpin_hash);
+    try {
+      const data = await apiFetch("/tpin/status");
+      setHasTpin(!!data?.has_tpin);
+    } catch {
+      setHasTpin(false);
+    }
     setLoading(false);
   };
 
@@ -54,15 +54,17 @@ export default function DashboardTpin() {
     }
 
     setSaving(true);
-    const res = await supabase.functions.invoke("set-tpin", {
-      body: { old_tpin: hasTpin ? oldTpin : undefined, new_tpin: newTpin },
-    });
-    setSaving(false);
-
-    if (res.error || res.data?.error) {
-      toast({ title: "Error", description: res.data?.error || res.error?.message || "Failed to set T-PIN.", variant: "destructive" });
+    try {
+      await apiFetch("/tpin/set", {
+        method: "POST",
+        body: JSON.stringify({ old_tpin: hasTpin ? oldTpin : undefined, new_tpin: newTpin }),
+      });
+    } catch (e: any) {
+      setSaving(false);
+      toast({ title: "Error", description: e.message || "Failed to set T-PIN.", variant: "destructive" });
       return;
     }
+    setSaving(false);
 
     toast({ title: "T-PIN Updated!", description: "Your Transaction PIN has been set successfully." });
     setOldTpin(""); setNewTpin(""); setConfirmTpin("");

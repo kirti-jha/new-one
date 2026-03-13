@@ -1,4 +1,4 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import DashboardSidebar from "@/components/DashboardSidebar";
 import { Bell, Search, User, LogOut, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import NotificationBell from "@/components/NotificationBell";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
+import usePageTitle from "@/hooks/usePageTitle";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Super Admin",
@@ -18,6 +19,18 @@ const ROLE_LABELS: Record<string, string> = {
 export default function DashboardLayout() {
   const { profile, role, signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const location = useLocation();
+
+  const dashTitle = (() => {
+    // /dashboard/<module>
+    const parts = location.pathname.split("/").filter(Boolean);
+    const moduleKey = parts[1] || "";
+    if (!moduleKey) return "Dashboard";
+    const pretty = moduleKey.replace(/-/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
+    return `Dashboard - ${pretty}`;
+  })();
+
+  usePageTitle(`AbheePay | ${dashTitle}`);
 
   return (
     <div className="flex min-h-screen bg-background">

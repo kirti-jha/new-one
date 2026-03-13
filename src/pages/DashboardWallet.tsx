@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Wallet, ArrowUpRight, ArrowDownRight, Plus, Clock,
@@ -16,9 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { downloadCSV } from "@/lib/csv-export";
 import { apiFetch } from "@/services/api";
-import type { Database } from "@/integrations/supabase/types";
-
-type AppRole = Database["public"]["Enums"]["app_role"];
+type AppRole = "admin" | "super_distributor" | "master_distributor" | "distributor" | "retailer";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   admin: "Admin",

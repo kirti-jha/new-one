@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   BarChart3, IndianRupee, TrendingUp, Users, Pencil, Save, X, RefreshCw, Download, Plus, Trash2,
@@ -178,7 +177,7 @@ export default function CommissionsPage() {
     try {
       const data = await apiFetch("/users/services");
       if (data) {
-        setServices(data.map((s: any) => ({ key: s.service_key, label: s.service_label })));
+        setServices(data.map((s: any) => ({ key: s.serviceKey, label: s.serviceLabel })));
       }
     } catch (err) {
       console.error("Error fetching services:", err);

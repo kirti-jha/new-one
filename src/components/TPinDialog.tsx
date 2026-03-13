@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { apiFetch } from "@/services/api";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
@@ -40,23 +40,23 @@ export function TPinDialog({ open, onOpenChange, amount, description, onSuccess 
   const fetchBalance = async () => {
     if (!user) return;
     setLoadingBalance(true);
-    const { data } = await supabase
-      .from("wallets")
-      .select("balance")
-      .eq("user_id", user.id)
-      .single();
-    setBalance(data ? parseFloat(String(data.balance)) : 0);
+    try {
+      const data = await apiFetch("/wallet");
+      setBalance(Number(data?.balance || 0));
+    } catch {
+      setBalance(0);
+    }
     setLoadingBalance(false);
   };
 
   const checkTpinExists = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("profiles")
-      .select("tpin_hash")
-      .eq("user_id", user.id)
-      .single();
-    if (!(data as any)?.tpin_hash) setNoTpin(true);
+    try {
+      const data = await apiFetch("/tpin/status");
+      if (!data?.has_tpin) setNoTpin(true);
+    } catch {
+      setNoTpin(true);
+    }
   };
 
   const handleConfirm = async () => {
@@ -88,17 +88,18 @@ export function TPinDialog({ open, onOpenChange, amount, description, onSuccess 
     }
 
     setLoading(true);
-    // Verify T-PIN via Supabase function
-    const { data, error } = await supabase.functions.invoke("verify-tpin", {
-      body: { tpin },
-    });
-    setLoading(false);
-
-    if (error || data?.error) {
+    try {
+      await apiFetch("/tpin/verify", {
+        method: "POST",
+        body: JSON.stringify({ tpin }),
+      });
+    } catch {
+      setLoading(false);
       toast({ title: "Invalid T-PIN", description: "The T-PIN you entered is incorrect.", variant: "destructive" });
       setTpin("");
       return;
     }
+    setLoading(false);
 
     onOpenChange(false);
     onSuccess();
@@ -207,12 +208,12 @@ export function useWalletBalance() {
     if (!user) return;
     const fetchBalance = async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from("wallets")
-        .select("balance")
-        .eq("user_id", user.id)
-        .single();
-      setBalance(data ? parseFloat(String(data.balance)) : 0);
+      try {
+        const data = await apiFetch("/wallet");
+        setBalance(Number(data?.balance || 0));
+      } catch {
+        setBalance(0);
+      }
       setLoading(false);
     };
     fetchBalance();

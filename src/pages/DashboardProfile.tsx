@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { apiFetch } from "@/services/api";
+import { uploadFileToBackend } from "@/services/files";
 import {
   User, Phone, Briefcase, Building2, CreditCard, ShieldCheck, Camera, Save,
   FileText, Upload, CheckCircle2, Clock, XCircle, BadgeCheck, Landmark,
@@ -11,9 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import type { Database } from "@/integrations/supabase/types";
-
-type AppRole = Database["public"]["Enums"]["app_role"];
+import type { AppRole } from "@/types/auth";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   admin: "Admin",
@@ -67,25 +66,24 @@ export default function DashboardProfile() {
     if (!user) return;
     const fetchProfile = async () => {
       setLoading(true);
-      const [{ data: p }, { data: w }] = await Promise.all([
-        supabase.from("profiles").select("*").eq("user_id", user.id).single(),
-        supabase.from("wallets").select("balance, e_wallet_balance").eq("user_id", user.id).single(),
-      ]);
+      const data = await apiFetch("/auth/me");
+      const p = data?.profile;
+      const w = { balance: data?.walletBalance, e_wallet_balance: data?.eWalletBalance };
       if (p) {
-        setFullName(p.full_name || "");
+        setFullName(p.fullName || "");
         setPhone(p.phone || "");
-        setBusinessName(p.business_name || "");
-        setBankName(p.bank_name || "");
-        setBankAcct(p.bank_account_number || "");
-        setBankIfsc(p.bank_ifsc || "");
-        setBankHolder(p.bank_account_holder || "");
-        setAadhaar(p.aadhaar_number || "");
-        setPan(p.pan_number || "");
-        setKycStatus(p.kyc_status);
+        setBusinessName(p.businessName || "");
+        setBankName(p.bankName || "");
+        setBankAcct(p.bankAccountNumber || "");
+        setBankIfsc(p.bankIfsc || "");
+        setBankHolder(p.bankAccountHolder || "");
+        setAadhaar(p.aadhaarNumber || "");
+        setPan(p.panNumber || "");
+        setKycStatus(p.kycStatus);
         setStatus(p.status);
-        setCreatedAt(p.created_at);
-        setAadhaarPath(p.aadhaar_image_path);
-        setPanPath(p.pan_image_path);
+        setCreatedAt(p.createdAt);
+        setAadhaarPath(p.aadhaarImagePath);
+        setPanPath(p.panImagePath);
       }
       if (w) {
         setWalletBalance(parseFloat(String(w.balance)));
@@ -100,34 +98,37 @@ export default function DashboardProfile() {
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
-    const { error } = await supabase.from("profiles").update({
-      full_name: fullName.trim(),
-      phone: phone.trim() || null,
-      business_name: businessName.trim() || null,
-      bank_name: bankName.trim() || null,
-      bank_account_number: bankAcct.trim() || null,
-      bank_ifsc: bankIfsc.trim().toUpperCase() || null,
-      bank_account_holder: bankHolder.trim() || null,
-    }).eq("user_id", user.id);
-    setSaving(false);
-    if (error) {
-      toast({ title: "Error saving", description: error.message, variant: "destructive" });
-    } else {
+    try {
+      await apiFetch("/users/profile", {
+        method: "PATCH",
+        body: JSON.stringify({
+          full_name: fullName.trim(),
+          phone: phone.trim() || null,
+          business_name: businessName.trim() || null,
+          bank_name: bankName.trim() || null,
+          bank_account_number: bankAcct.trim() || null,
+          bank_ifsc: bankIfsc.trim().toUpperCase() || null,
+          bank_account_holder: bankHolder.trim() || null,
+        }),
+      });
+      setSaving(false);
       toast({ title: "Profile updated!", description: "Your profile has been saved successfully." });
       setEditing(false);
-      // Refresh AuthContext so the top-right header also updates
       await refreshProfile();
-      // Also re-fetch local state from DB for confirmed values
-      const { data: p } = await supabase.from("profiles").select("*").eq("user_id", user.id).single();
+      const me = await apiFetch("/auth/me");
+      const p = me?.profile;
       if (p) {
-        setFullName(p.full_name || "");
+        setFullName(p.fullName || "");
         setPhone(p.phone || "");
-        setBusinessName(p.business_name || "");
-        setBankName(p.bank_name || "");
-        setBankAcct(p.bank_account_number || "");
-        setBankIfsc(p.bank_ifsc || "");
-        setBankHolder(p.bank_account_holder || "");
+        setBusinessName(p.businessName || "");
+        setBankName(p.bankName || "");
+        setBankAcct(p.bankAccountNumber || "");
+        setBankIfsc(p.bankIfsc || "");
+        setBankHolder(p.bankAccountHolder || "");
       }
+    } catch (e: any) {
+      setSaving(false);
+      toast({ title: "Error saving", description: e.message, variant: "destructive" });
     }
   };
 
@@ -135,19 +136,24 @@ export default function DashboardProfile() {
     if (!user) return;
     const setter = docType === "aadhaar" ? setUploadingAadhaar : setUploadingPan;
     setter(true);
-    const ext = file.name.split(".").pop();
-    const path = `${user.id}/${docType}_${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from("user-documents").upload(path, file);
-    if (upErr) {
-      toast({ title: "Upload failed", description: upErr.message, variant: "destructive" });
+    try {
+      const uploaded = await uploadFileToBackend(file, `user-documents/${user.id}/${docType}`);
+      const path = uploaded?.filePath;
+      if (!path) throw new Error("Upload failed");
+
+      const updateField = docType === "aadhaar" ? "aadhaar_image_path" : "pan_image_path";
+      await apiFetch("/users/profile", {
+        method: "PATCH",
+        body: JSON.stringify({ [updateField]: path }),
+      });
+      if (docType === "aadhaar") setAadhaarPath(path);
+      else setPanPath(path);
+      toast({ title: `${docType === "aadhaar" ? "Aadhaar" : "PAN"} document uploaded` });
+    } catch (e: any) {
+      toast({ title: "Upload failed", description: e.message, variant: "destructive" });
       setter(false);
       return;
     }
-    const updateField = docType === "aadhaar" ? "aadhaar_image_path" : "pan_image_path";
-    await supabase.from("profiles").update({ [updateField]: path }).eq("user_id", user.id);
-    if (docType === "aadhaar") setAadhaarPath(path);
-    else setPanPath(path);
-    toast({ title: `${docType === "aadhaar" ? "Aadhaar" : "PAN"} document uploaded` });
     setter(false);
   };
 

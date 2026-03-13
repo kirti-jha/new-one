@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   FileText, Search, CheckCircle2, Clock, XCircle, Eye, Upload,
@@ -18,6 +17,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiFetch } from "@/services/api";
+import { uploadFileToBackend, toFileUrl } from "@/services/files";
 
 const DOC_TYPES = [
   { value: "aadhaar", label: "Aadhaar Card" },
@@ -118,13 +118,9 @@ export default function KYCPage() {
 
     setUploading(true);
     try {
-      const ext = uploadFile.name.split(".").pop() || "file";
-      const filePath = `${user.id}/${uploadType}_${Date.now()}.${ext}`;
-
-      const { error: storageErr } = await supabase.storage
-        .from("kyc-documents")
-        .upload(filePath, uploadFile);
-      if (storageErr) throw storageErr;
+      const uploaded = await uploadFileToBackend(uploadFile, `kyc-documents/${uploadType}`);
+      const filePath = uploaded?.filePath;
+      if (!filePath) throw new Error("File upload failed");
 
       // Meta record in Neon
       await apiFetch("/kyc", {
@@ -169,11 +165,9 @@ export default function KYCPage() {
   };
 
   const handlePreview = async (doc: KycDoc) => {
-    const { data } = await supabase.storage
-      .from("kyc-documents")
-      .createSignedUrl(doc.file_path, 300);
-    if (data?.signedUrl) {
-      setPreviewUrl(data.signedUrl);
+    const url = toFileUrl(doc.file_path);
+    if (url) {
+      setPreviewUrl(url);
       setPreviewOpen(true);
     } else {
       toast({ title: "Error", description: "Could not load document.", variant: "destructive" });

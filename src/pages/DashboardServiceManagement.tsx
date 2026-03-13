@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Settings2, ToggleLeft, ToggleRight, RefreshCw, Search,
@@ -8,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { apiFetch } from "@/services/api";
 
 interface ServiceConfig {
   id: string;
@@ -27,24 +27,33 @@ export default function DashboardServiceManagement() {
 
   const fetchServices = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("service_config")
-      .select("*")
-      .order("service_label");
-    if (data) setServices(data as ServiceConfig[]);
+    try {
+      const data = await apiFetch("/service-config");
+      if (data) {
+        setServices(data.map((s: any) => ({
+          id: s.id,
+          service_key: s.serviceKey,
+          service_label: s.serviceLabel,
+          is_enabled: s.isEnabled,
+          route_path: s.routePath,
+          section: s.section || "Services",
+        })));
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
     setLoading(false);
-  }, []);
+  }, [toast]);
 
   useEffect(() => { fetchServices(); }, [fetchServices]);
 
   const toggleService = async (service: ServiceConfig) => {
     setToggling(service.service_key);
     try {
-      const { error } = await supabase
-        .from("service_config")
-        .update({ is_enabled: !service.is_enabled })
-        .eq("id", service.id);
-      if (error) throw error;
+      await apiFetch(`/service-config/${service.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ is_enabled: !service.is_enabled }),
+      });
       toast({
         title: `${service.service_label} ${!service.is_enabled ? "enabled" : "disabled"}`,
         description: !service.is_enabled

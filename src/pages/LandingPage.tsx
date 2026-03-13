@@ -1,52 +1,20 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { MARKETING_SERVICES } from "@/data/services";
+import usePageTitle from "@/hooks/usePageTitle";
 import {
-  CreditCard,
-  Send,
   Zap,
   Shield,
   Users,
-  BarChart3,
   ArrowRight,
-  Fingerprint,
-  Receipt,
-  Wallet,
   ChevronRight,
   CheckCircle2,
+  Link2,
+  PhoneCall,
+  Mail,
+  MapPin,
 } from "lucide-react";
 
-const services = [
-  {
-    icon: Fingerprint,
-    title: "AEPS",
-    description: "Aadhaar-enabled cash withdrawal, balance inquiry & mini statements via biometric authentication.",
-  },
-  {
-    icon: Send,
-    title: "DMT",
-    description: "Instant domestic money transfer to any bank account in India, available 24/7.",
-  },
-  {
-    icon: Receipt,
-    title: "BBPS",
-    description: "Seamless utility payments — electricity, water, gas, mobile recharge & DTH.",
-  },
-  {
-    icon: Wallet,
-    title: "Payout & Settlement",
-    description: "Automated IMPS/NEFT settlements with real-time processing for merchants.",
-  },
-  {
-    icon: CreditCard,
-    title: "PAN Services",
-    description: "Integrated NSDL/UTI portal for new PAN applications and corrections.",
-  },
-  {
-    icon: BarChart3,
-    title: "Commission Engine",
-    description: "Dynamic commission slabs configurable per role, per service for maximum profitability.",
-  },
-];
 
 const features = [
   "Multi-level distribution hierarchy",
@@ -58,13 +26,15 @@ const features = [
 ];
 
 const stats = [
-  { value: "₹500Cr+", label: "Monthly Volume" },
+  { value: "Rs 500Cr+", label: "Monthly Volume" },
   { value: "50K+", label: "Active Retailers" },
   { value: "99.9%", label: "Uptime SLA" },
   { value: "<2s", label: "Avg Settlement" },
 ];
 
 export default function LandingPage() {
+  usePageTitle("AbheePay | Home");
+
   return (
     <div className="min-h-screen bg-background">
       {/* Navbar */}
@@ -74,19 +44,22 @@ export default function LandingPage() {
             <img
               src="https://pos.abheepay.com/assets/FORMAT-PNG-Lj3U1uY2.png"
               alt="ABHEEPAY"
-              className="h-10 w-auto"
+              className="h-12 w-auto"
             />
           </Link>
           <div className="hidden md:flex items-center gap-8">
+            <a href="#stats" className="text-sm text-muted-foreground hover:text-foreground transition-colors">About Us</a>
             <a href="#services" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Services</a>
-            <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Features</a>
-            <a href="#stats" className="text-sm text-muted-foreground hover:text-foreground transition-colors">About</a>
+            <Link to="/signup?role=retailer" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Join as Retailer</Link>
+            <Link to="/signup?role=distributor" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Join as Distributor</Link>
+            <Link to="/blogs" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Blogs</Link>
+            <a href="#contact" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Contact Us</a>
           </div>
           <div className="flex items-center gap-3">
-            <Link to="/dashboard">
+            <Link to="/login">
               <Button variant="hero-outline" size="sm">Login</Button>
             </Link>
-            <Link to="/dashboard">
+            <Link to="/login">
               <Button variant="hero" size="sm">Get Started</Button>
             </Link>
           </div>
@@ -108,11 +81,11 @@ export default function LandingPage() {
               Services
             </h1>
             <p className="text-lg text-muted-foreground mb-10 max-w-2xl mx-auto">
-              AEPS, DMT, BBPS, Payouts — everything your distribution network needs.
+              AEPS, DMT, BBPS, Payouts - everything your distribution network needs.
               Real-time settlements. Enterprise-grade security. Zero downtime.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link to="/dashboard">
+              <Link to="/login">
                 <Button variant="hero" size="lg" className="text-base px-8">
                   Start Earning Today
                   <ArrowRight className="w-4 h-4 ml-1" />
@@ -148,22 +121,28 @@ export default function LandingPage() {
             <p className="text-muted-foreground max-w-xl mx-auto">
               Everything your network needs to serve millions of customers across India.
             </p>
+            <div className="mt-6">
+              <Link to="/services" className="inline-flex items-center text-sm font-medium text-primary hover:underline">
+                View all services <ChevronRight className="w-4 h-4 ml-1" />
+              </Link>
+            </div>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-            {services.map((service) => (
-              <div
-                key={service.title}
+            {MARKETING_SERVICES.map((svc) => (
+              <Link
+                key={svc.key}
+                to={`/services/${svc.key}`}
                 className="group p-6 rounded-xl bg-gradient-card border border-border hover:border-primary/40 transition-all duration-300 hover:shadow-glow"
               >
                 <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                  <service.icon className="w-6 h-6 text-primary" />
+                  <svc.icon className="w-6 h-6 text-primary" />
                 </div>
-                <h3 className="text-lg font-heading font-semibold text-foreground mb-2">{service.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{service.description}</p>
+                <h3 className="text-lg font-heading font-semibold text-foreground mb-2">{svc.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{svc.description}</p>
                 <div className="mt-4 flex items-center text-primary text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
                   Learn more <ChevronRight className="w-4 h-4 ml-1" />
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -178,7 +157,7 @@ export default function LandingPage() {
                 Built for <span className="text-gradient-primary">Scale & Security</span>
               </h2>
               <p className="text-muted-foreground mb-8">
-                Enterprise-grade infrastructure with multi-level access control, real-time monitoring, and automated compliance — designed for India's largest distribution networks.
+                Enterprise-grade infrastructure with multi-level access control, real-time monitoring, and automated compliance - designed for India's largest distribution networks.
               </p>
               <div className="grid sm:grid-cols-2 gap-4">
                 {features.map((f) => (
@@ -188,7 +167,7 @@ export default function LandingPage() {
                   </div>
                 ))}
               </div>
-              <Link to="/dashboard" className="inline-block mt-8">
+              <Link to="/login" className="inline-block mt-8">
                 <Button variant="hero" size="lg">
                   Access Dashboard
                   <ArrowRight className="w-4 h-4 ml-1" />
@@ -232,7 +211,7 @@ export default function LandingPage() {
               <p className="text-muted-foreground mb-8 max-w-lg mx-auto">
                 Join thousands of distributors and retailers already using Abheepay to power their financial services network.
               </p>
-              <Link to="/dashboard">
+              <Link to="/login">
                 <Button variant="hero" size="lg" className="text-base px-10">
                   Get Started Now
                   <ArrowRight className="w-4 h-4 ml-1" />
@@ -243,20 +222,128 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border py-12">
+      {/* Contact */}
+      <section id="contact" className="py-20 bg-gradient-hero">
         <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center">
-              <img
-                src="https://pos.abheepay.com/assets/FORMAT-PNG-Lj3U1uY2.png"
-                alt="ABHEEPAY"
-                className="h-8 w-auto"
-              />
+          <div className="max-w-5xl mx-auto grid gap-8 lg:grid-cols-2 items-start">
+            <div>
+              <h2 className="text-3xl sm:text-4xl font-heading font-bold text-foreground">
+                Contact <span className="text-gradient-primary">Us</span>
+              </h2>
+              <p className="text-muted-foreground mt-3">
+                Reach out for onboarding, pricing, and integration support.
+              </p>
             </div>
-            <p className="text-sm text-muted-foreground">
-              © 2026 Abheepay. All rights reserved. Built with ❤️ by the Abheepay Dev Team.
-            </p>
+            <div className="rounded-2xl border border-border bg-gradient-card p-6 shadow-elevated">
+              <div className="text-sm text-muted-foreground">Call Us</div>
+              <a className="text-foreground font-medium mt-1 inline-block hover:underline" href="tel:+918860037218">
+                +91 88600 37218
+              </a>
+              <div className="h-px bg-border my-5" />
+              <div className="text-sm text-muted-foreground">Email Us</div>
+              <a className="text-foreground font-medium mt-1 inline-block hover:underline" href="mailto:care@abheepay.in">
+                care@abheepay.in
+              </a>
+              <div className="h-px bg-border my-5" />
+              <div className="text-sm text-muted-foreground">Visit Us</div>
+              <div className="text-foreground font-medium mt-1 leading-relaxed">
+                2nd Floor, Plot No - 3, KH. NO. 33/6<br />
+                AMBERHAI, SECTOR-19, DWARKA,<br />
+                NEW DELHI - 110043
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-slate-900 text-slate-100">
+        <div className="container mx-auto px-4 py-16">
+          <div className="grid gap-10 lg:grid-cols-3 items-start">
+            <div>
+              <div className="flex items-center gap-3">
+                <img
+                  src="https://pos.abheepay.com/assets/FORMAT-PNG-Lj3U1uY2.png"
+                  alt="ABHEEPAY"
+                  className="h-12 w-auto"
+                />
+              </div>
+              <p className="mt-5 text-sm text-slate-300 leading-relaxed max-w-sm">
+                AbheePay delivers secure fintech, payments, and digital financial solutions.
+              </p>
+              <a href="#stats" className="mt-4 inline-flex items-center text-sm font-medium text-teal-300 hover:text-teal-200">
+                Read more <ChevronRight className="w-4 h-4 ml-1" />
+              </a>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2">
+                <Link2 className="w-5 h-5 text-teal-300" />
+                <h3 className="text-2xl font-heading font-bold">Quick link</h3>
+              </div>
+              <div className="mt-5 border-t border-slate-700/70">
+                {[
+                  { label: "Home", to: "/" },
+                  { label: "Refund Policy", to: "/refund-policy" },
+                  { label: "Join as Retailer", to: "/signup?role=retailer" },
+                  { label: "Join as Distributor", to: "/signup?role=distributor" },
+                  { label: "Privacy Policy", to: "/privacy-policy" },
+                  { label: "Terms & Conditions", to: "/terms" },
+                ].map((l) => (
+                  <Link
+                    key={l.label}
+                    to={l.to}
+                    className="flex items-center justify-between gap-3 py-3 border-b border-slate-700/70 text-slate-200 hover:text-white transition-colors"
+                  >
+                    <span className="text-sm">{l.label}</span>
+                    <ChevronRight className="w-4 h-4 text-slate-500" />
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-2xl font-heading font-bold">Contact Us</h3>
+              <div className="mt-6 space-y-6">
+                <div className="flex gap-3">
+                  <PhoneCall className="w-5 h-5 text-teal-300 mt-0.5 shrink-0" />
+                  <div>
+                    <div className="text-sm font-semibold">Call Us</div>
+                    <a className="text-sm text-slate-300 hover:text-white" href="tel:+918860037218">
+                      +91 88600 37218
+                    </a>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <Mail className="w-5 h-5 text-teal-300 mt-0.5 shrink-0" />
+                  <div>
+                    <div className="text-sm font-semibold">Email Us</div>
+                    <a className="text-sm text-slate-300 hover:text-white" href="mailto:care@abheepay.in">
+                      care@abheepay.in
+                    </a>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <MapPin className="w-5 h-5 text-teal-300 mt-0.5 shrink-0" />
+                  <div>
+                    <div className="text-sm font-semibold">Visit Us</div>
+                    <div className="text-sm text-slate-300 leading-relaxed">
+                      2nd Floor, Plot No - 3, KH. NO. 33/6
+                      <br />
+                      AMBERHAI, SECTOR-19, DWARKA,
+                      <br />
+                      NEW DELHI - 110043
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-slate-700/70">
+          <div className="container mx-auto px-4 py-6 text-center text-sm text-slate-400">
+            (c) 2025 AbheePay. All rights reserved.
           </div>
         </div>
       </footer>

@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Download, FileSpreadsheet, Wallet, Banknote, BarChart3, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { downloadCSV } from "@/lib/csv-export";
+import { apiFetch } from "@/services/api";
 
 export default function DashboardReports() {
   const { user, role } = useAuth();
@@ -29,20 +29,7 @@ export default function DashboardReports() {
       const to = `${toDate}T23:59:59.999Z`;
 
       if (reportType === "wallet_ledger") {
-        const q = supabase
-          .from("wallet_transactions")
-          .select("*")
-          .gte("created_at", from)
-          .lte("created_at", to)
-          .order("created_at", { ascending: false })
-          .limit(1000);
-
-        if (!isAdmin) {
-          q.or(`from_user_id.eq.${user.id},to_user_id.eq.${user.id}`);
-        }
-
-        const { data, error } = await q;
-        if (error) throw error;
+        const data = await apiFetch("/wallet/transactions");
         if (!data?.length) { toast({ title: "No data found for selected period" }); return; }
 
         downloadCSV(
@@ -62,20 +49,7 @@ export default function DashboardReports() {
       }
 
       if (reportType === "fund_requests") {
-        const q = supabase
-          .from("fund_requests")
-          .select("*")
-          .gte("created_at", from)
-          .lte("created_at", to)
-          .order("created_at", { ascending: false })
-          .limit(1000);
-
-        if (!isAdmin) {
-          q.eq("requester_id", user.id);
-        }
-
-        const { data, error } = await q;
-        if (error) throw error;
+        const data = await apiFetch("/fund-requests");
         if (!data?.length) { toast({ title: "No data found for selected period" }); return; }
 
         downloadCSV(
@@ -96,20 +70,7 @@ export default function DashboardReports() {
       }
 
       if (reportType === "commissions") {
-        const q = supabase
-          .from("commission_logs")
-          .select("*")
-          .gte("created_at", from)
-          .lte("created_at", to)
-          .order("created_at", { ascending: false })
-          .limit(1000);
-
-        if (!isAdmin) {
-          q.eq("user_id", user.id);
-        }
-
-        const { data, error } = await q;
-        if (error) throw error;
+        const data = await apiFetch("/commission/logs");
         if (!data?.length) { toast({ title: "No data found for selected period" }); return; }
 
         downloadCSV(
@@ -128,20 +89,7 @@ export default function DashboardReports() {
       }
 
       if (reportType === "kyc") {
-        const q = supabase
-          .from("kyc_documents")
-          .select("*")
-          .gte("created_at", from)
-          .lte("created_at", to)
-          .order("created_at", { ascending: false })
-          .limit(1000);
-
-        if (!isAdmin) {
-          q.eq("user_id", user.id);
-        }
-
-        const { data, error } = await q;
-        if (error) throw error;
+        const data = await apiFetch("/kyc");
         if (!data?.length) { toast({ title: "No data found for selected period" }); return; }
 
         downloadCSV(
