@@ -52,8 +52,8 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
 // POST /api/fund-requests — submit a new fund request
 router.post("/", requireAuth, async (req: AuthRequest, res) => {
   const { bank_account_id, amount, payment_mode, payment_reference, payment_date, remarks } = req.body;
-  if (!bank_account_id || !amount || !payment_reference) {
-    return res.status(400).json({ error: "Missing required fields" });
+  if (!bank_account_id || !amount || Number(amount) <= 0 || !payment_reference) {
+    return res.status(400).json({ error: "Missing required fields or invalid amount" });
   }
   try {
     const request = await prisma.fundRequest.create({

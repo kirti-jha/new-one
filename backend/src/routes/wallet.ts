@@ -36,6 +36,9 @@ router.get("/transactions", requireAuth, async (req: AuthRequest, res) => {
 // POST /api/wallet/top-up — admin top-up a user
 router.post("/top-up", requireAuth, async (req: AuthRequest, res) => {
   const { to_user_id, amount, description } = req.body;
+  const amt = Number(amount);
+  if (!amt || amt <= 0) return res.status(400).json({ error: "Amount must be greater than zero" });
+
   try {
     const roleRow = await prisma.userRole.findFirst({ where: { userId: req.userId! } });
     if (roleRow?.role !== "admin") return res.status(403).json({ error: "Forbidden" });
@@ -43,13 +46,13 @@ router.post("/top-up", requireAuth, async (req: AuthRequest, res) => {
     const toWallet = await prisma.wallet.findUnique({ where: { userId: to_user_id } });
     if (!toWallet) return res.status(404).json({ error: "User wallet not found" });
 
-    const newBalance = Number(toWallet.balance) + Number(amount);
+    const newBalance = Number(toWallet.balance) + amt;
     const [, txn] = await prisma.$transaction([
       prisma.wallet.update({ where: { userId: to_user_id }, data: { balance: newBalance } }),
       prisma.walletTransaction.create({
         data: {
           toUserId: to_user_id,
-          amount: Number(amount),
+          amount: amt,
           type: "top_up",
           description: description || "Admin Top-up",
           toBalanceAfter: newBalance,
@@ -62,7 +65,7 @@ router.post("/top-up", requireAuth, async (req: AuthRequest, res) => {
       data: {
         userId: to_user_id,
         title: "Wallet Topped Up ✓",
-        message: `Your wallet was topped up with ₹${amount}.`,
+        message: `Your wallet was topped up with ₹${amt}.`,
         type: "success",
       },
     });
@@ -76,17 +79,20 @@ router.post("/top-up", requireAuth, async (req: AuthRequest, res) => {
 // POST /api/wallet/transfer — transfer funds to downline
 router.post("/transfer", requireAuth, async (req: AuthRequest, res) => {
   const { to_user_id, amount, description } = req.body;
+  const amt = Number(amount);
+  if (!amt || amt <= 0) return res.status(400).json({ error: "Amount must be greater than zero" });
+
   try {
     const fromWallet = await prisma.wallet.findUnique({ where: { userId: req.userId! } });
-    if (!fromWallet || Number(fromWallet.balance) < Number(amount)) {
+    if (!fromWallet || Number(fromWallet.balance) < amt) {
       return res.status(400).json({ error: "Insufficient balance" });
     }
 
     const toWallet = await prisma.wallet.findUnique({ where: { userId: to_user_id } });
     if (!toWallet) return res.status(404).json({ error: "Recipient wallet not found" });
 
-    const fromNewBalance = Number(fromWallet.balance) - Number(amount);
-    const toNewBalance = Number(toWallet.balance) + Number(amount);
+    const fromNewBalance = Number(fromWallet.balance) - amt;
+    const toNewBalance = Number(toWallet.balance) + amt;
 
     const [, , txn] = await prisma.$transaction([
       prisma.wallet.update({ where: { userId: req.userId! }, data: { balance: fromNewBalance } }),
@@ -95,7 +101,7 @@ router.post("/transfer", requireAuth, async (req: AuthRequest, res) => {
         data: {
           fromUserId: req.userId!,
           toUserId: to_user_id,
-          amount: Number(amount),
+          amount: amt,
           type: "transfer",
           description: description || "Fund Transfer",
           fromBalanceAfter: fromNewBalance,
@@ -109,7 +115,7 @@ router.post("/transfer", requireAuth, async (req: AuthRequest, res) => {
       data: {
         userId: to_user_id,
         title: "Funds Received",
-        message: `You received ₹${amount} from your upline.`,
+        message: `You received ₹${amt} from your upline.`,
         type: "success",
       },
     });
@@ -123,16 +129,19 @@ router.post("/transfer", requireAuth, async (req: AuthRequest, res) => {
 // POST /api/wallet/pg-add — simulated PG add fund
 router.post("/pg-add", requireAuth, async (req: AuthRequest, res) => {
   const { amount } = req.body;
+  const amt = Number(amount);
+  if (!amt || amt <= 0) return res.status(400).json({ error: "Amount must be greater than zero" });
+
   try {
     const wallet = await prisma.wallet.findUnique({ where: { userId: req.userId! } });
-    const newBalance = Number(wallet?.balance ?? 0) + Number(amount);
+    const newBalance = Number(wallet?.balance ?? 0) + amt;
 
     const [, txn] = await prisma.$transaction([
       prisma.wallet.update({ where: { userId: req.userId! }, data: { balance: newBalance } }),
       prisma.walletTransaction.create({
         data: {
           toUserId: req.userId!,
-          amount: Number(amount),
+          amount: amt,
           type: "pg_add",
           description: "Fund Added via Payment Gateway",
           toBalanceAfter: newBalance,
@@ -149,19 +158,22 @@ router.post("/pg-add", requireAuth, async (req: AuthRequest, res) => {
 // POST /api/wallet/bank-topup — admin self top-up via bank
 router.post("/bank-topup", requireAuth, async (req: AuthRequest, res) => {
   const { amount, bank_reference, bank_name, description } = req.body;
+  const amt = Number(amount);
+  if (!amt || amt <= 0) return res.status(400).json({ error: "Amount must be greater than zero" });
+
   try {
     const roleRow = await prisma.userRole.findFirst({ where: { userId: req.userId! } });
     if (roleRow?.role !== "admin") return res.status(403).json({ error: "Forbidden" });
 
     const wallet = await prisma.wallet.findUnique({ where: { userId: req.userId! } });
-    const newBalance = Number(wallet?.balance ?? 0) + Number(amount);
+    const newBalance = Number(wallet?.balance ?? 0) + amt;
 
     const [, txn] = await prisma.$transaction([
       prisma.wallet.update({ where: { userId: req.userId! }, data: { balance: newBalance } }),
       prisma.walletTransaction.create({
         data: {
           toUserId: req.userId!,
-          amount: Number(amount),
+          amount: amt,
           type: "bank_deposit",
           description: `${description || "Bank Deposit"} - Ref: ${bank_reference} (${bank_name})`,
           toBalanceAfter: newBalance,

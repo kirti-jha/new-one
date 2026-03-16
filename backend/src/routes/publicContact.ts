@@ -101,7 +101,7 @@ router.post("/contact", async (req, res) => {
     }),
   });
 
-  const json = await resp.json().catch(() => null);
+  const json = (await resp.json().catch(() => null)) as any;
   if (!resp.ok) {
     return res.status(502).json({
       error: json?.message || json?.error?.message || "Failed to send email",
@@ -113,11 +113,11 @@ router.post("/contact", async (req, res) => {
 
 function escapeHtml(value: string) {
   return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 export default router;

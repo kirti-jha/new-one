@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Download, FileSpreadsheet, Wallet, Banknote, BarChart3, FileText } from "lucide-react";
+import { Download, FileSpreadsheet, Wallet, Banknote, BarChart3, FileText, Eye, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,9 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { downloadCSV } from "@/lib/csv-export";
 import { apiFetch } from "@/services/api";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
 
 export default function DashboardReports() {
   const { user, role } = useAuth();
@@ -20,99 +23,102 @@ export default function DashboardReports() {
   });
   const [toDate, setToDate] = useState(new Date().toISOString().split("T")[0]);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [viewingReport, setViewingReport] = useState<string | null>(null);
+  const [reportData, setReportData] = useState<any[]>([]);
+  const [viewingLoading, setViewingLoading] = useState(false);
+
 
   const handleDownload = async (reportType: string) => {
     if (!user) return;
     setDownloading(reportType);
     try {
-      const from = `${fromDate}T00:00:00.000Z`;
-      const to = `${toDate}T23:59:59.999Z`;
+      const data = await fetchReportData(reportType);
+      if (!data?.length) { toast({ title: "No data found for selected period" }); return; }
 
-      if (reportType === "wallet_ledger") {
-        const data = await apiFetch("/wallet/transactions");
-        if (!data?.length) { toast({ title: "No data found for selected period" }); return; }
-
-        downloadCSV(
-          data.map((t: any) => ({
-            ID: t.id,
-            Type: t.type,
-            From_User: t.from_user_id || "System",
-            To_User: t.to_user_id,
-            Amount: t.amount,
-            Description: t.description || "",
-            From_Balance: t.from_balance_after ?? "",
-            To_Balance: t.to_balance_after,
-            Date: new Date(t.created_at).toLocaleString("en-IN"),
-          })),
-          "wallet_ledger"
-        );
-      }
-
-      if (reportType === "fund_requests") {
-        const data = await apiFetch("/fund-requests");
-        if (!data?.length) { toast({ title: "No data found for selected period" }); return; }
-
-        downloadCSV(
-          data.map((r: any) => ({
-            ID: r.id,
-            Amount: r.amount,
-            Status: r.status,
-            Payment_Mode: r.payment_mode,
-            Payment_Reference: r.payment_reference,
-            Payment_Date: r.payment_date,
-            Remarks: r.remarks || "",
-            Rejection_Reason: r.rejection_reason || "",
-            Created: new Date(r.created_at).toLocaleString("en-IN"),
-            Approved_At: r.approved_at ? new Date(r.approved_at).toLocaleString("en-IN") : "",
-          })),
-          "fund_requests"
-        );
-      }
-
-      if (reportType === "commissions") {
-        const data = await apiFetch("/commission/logs");
-        if (!data?.length) { toast({ title: "No data found for selected period" }); return; }
-
-        downloadCSV(
-          data.map((c: any) => ({
-            ID: c.id,
-            Service: c.service_key,
-            Transaction_Amount: c.transaction_amount,
-            Commission_Amount: c.commission_amount,
-            Commission_Type: c.commission_type,
-            Commission_Value: c.commission_value,
-            Credited: c.credited ? "Yes" : "No",
-            Date: new Date(c.created_at).toLocaleString("en-IN"),
-          })),
-          "commission_report"
-        );
-      }
-
-      if (reportType === "kyc") {
-        const data = await apiFetch("/kyc");
-        if (!data?.length) { toast({ title: "No data found for selected period" }); return; }
-
-        downloadCSV(
-          data.map((d: any) => ({
-            ID: d.id,
-            User_ID: d.user_id,
-            Document_Type: d.doc_type,
-            File_Name: d.file_name,
-            Status: d.status,
-            Review_Note: d.review_note || "",
-            Created: new Date(d.created_at).toLocaleString("en-IN"),
-            Reviewed_At: d.reviewed_at ? new Date(d.reviewed_at).toLocaleString("en-IN") : "",
-          })),
-          "kyc_report"
-        );
-      }
-
+      const formatted = formatReportData(reportType, data);
+      downloadCSV(formatted, `${reportType}_report`);
       toast({ title: "Report downloaded successfully!" });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setDownloading(null);
     }
+  };
+
+  const handleViewReport = async (reportType: string) => {
+    if (!user) return;
+    setViewingReport(reportType);
+    setViewingLoading(true);
+    try {
+      const data = await fetchReportData(reportType);
+      if (!data?.length) { 
+        toast({ title: "No data found for selected period" }); 
+        setViewingReport(null);
+        return; 
+      }
+
+      setReportData(formatReportData(reportType, data));
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+      setViewingReport(null);
+    } finally {
+      setViewingLoading(false);
+    }
+  };
+
+  const fetchReportData = async (reportType: string) => {
+    // Current backend routes don't support date range filtering yet, 
+    // we fetch everything and user gets the full report.
+    if (reportType === "wallet_ledger") return await apiFetch("/wallet/transactions");
+    if (reportType === "fund_requests") return await apiFetch("/fund-requests");
+    if (reportType === "commissions") return await apiFetch("/commission/logs");
+    if (reportType === "kyc") return await apiFetch("/kyc");
+    return [];
+  };
+
+  const formatReportData = (reportType: string, data: any[]) => {
+    if (reportType === "wallet_ledger") {
+      return data.map((t: any) => ({
+        ID: t.id,
+        Type: t.type,
+        From: t.from_user_id || "System",
+        To: t.to_user_id,
+        Amount: `₹${t.amount}`,
+        Description: t.description || "",
+        New_Balance: `₹${t.to_balance_after}`,
+        Date: new Date(t.created_at).toLocaleString("en-IN"),
+      }));
+    }
+    if (reportType === "fund_requests") {
+      return data.map((r: any) => ({
+        ID: r.id,
+        Amount: `₹${r.amount}`,
+        Status: r.status,
+        Mode: r.payment_mode,
+        Reference: r.payment_reference,
+        Date: new Date(r.created_at).toLocaleString("en-IN"),
+      }));
+    }
+    if (reportType === "commissions") {
+      return data.map((c: any) => ({
+        ID: c.id,
+        Service: c.service_key,
+        Txn_Amount: `₹${c.transaction_amount}`,
+        Comm: `₹${c.commission_amount}`,
+        Value: c.commission_value,
+        Credited: c.credited ? "Yes" : "No",
+        Date: new Date(c.created_at).toLocaleString("en-IN"),
+      }));
+    }
+    if (reportType === "kyc") {
+      return data.map((d: any) => ({
+        ID: d.id,
+        Type: d.doc_type,
+        Status: d.status,
+        Created: new Date(d.created_at).toLocaleString("en-IN"),
+      }));
+    }
+    return data;
   };
 
   const reports = [
@@ -185,11 +191,25 @@ export default function DashboardReports() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="pt-0">
+            <CardContent className="pt-0 flex flex-col sm:flex-row gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full"
+                className="flex-1"
+                onClick={() => handleViewReport(r.key)}
+                disabled={viewingLoading && viewingReport === r.key}
+              >
+                {viewingLoading && viewingReport === r.key ? (
+                  <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                ) : (
+                  <Eye className="w-4 h-4 mr-1.5" />
+                )}
+                See Report
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
                 onClick={() => handleDownload(r.key)}
                 disabled={downloading === r.key}
               >
@@ -200,6 +220,46 @@ export default function DashboardReports() {
           </Card>
         ))}
       </div>
+
+      <Dialog open={!!viewingReport && !viewingLoading} onOpenChange={(open) => !open && setViewingReport(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>{reports.find(r => r.key === viewingReport)?.title}</DialogTitle>
+            <DialogDescription>
+              Preview of the selected report. Click Download CSV for the full record.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-auto border rounded-lg">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10">
+                <TableRow>
+                  {reportData.length > 0 && 
+                    Object.keys(reportData[0]).map((key) => (
+                      <TableHead key={key}>{key.replace(/_/g, " ")}</TableHead>
+                    ))
+                  }
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {reportData.map((row, i) => (
+                  <TableRow key={i}>
+                    {Object.values(row).map((val: any, j) => (
+                      <TableCell key={j} className="whitespace-nowrap max-w-[200px] truncate">
+                        {val}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          
+          <div className="flex justify-end pt-4">
+            <Button variant="outline" onClick={() => setViewingReport(null)}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
