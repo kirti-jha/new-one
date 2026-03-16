@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Banknote, Plus, Clock, CheckCircle2, XCircle, Send, Eye, MoreVertical,
@@ -155,12 +155,15 @@ export default function DashboardFundRequests() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleSubmitRequest = async () => {
+    console.log(`[Fund Request UI] Create Request click. Amount: ${reqAmount}, Ref: ${reqRef}`);
     if (!reqBank || !reqAmount || parseFloat(reqAmount) <= 0 || !reqRef || !reqDate || !user) {
+      console.warn(`[Fund Request UI] Validation failed for fund request`);
       toast({ title: "Missing fields", description: "Fill all required fields.", variant: "destructive" });
       return;
     }
     setSubmitting(true);
     try {
+      console.log(`[Fund Request UI] Calling POST /fund-requests`);
       let receiptPath: string | null = null;
       let receiptName: string | null = null;
 

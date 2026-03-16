@@ -120,11 +120,12 @@ model CommissionSlab {
   role            AppRole
   commissionType  String   @default("flat") @map("commission_type")
   commissionValue Decimal  @default(0) @map("commission_value")
+  minAmount       Decimal? @map("min_amount") @db.Decimal(15, 2)
+  maxAmount       Decimal? @map("max_amount") @db.Decimal(15, 2)
   isActive        Boolean  @default(true) @map("is_active")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  @@unique([serviceKey, role])
   @@map("commission_slabs")
 }
 
@@ -245,13 +246,14 @@ model UserCommissionOverride {
   serviceLabel    String   @map("service_label")
   commissionType  String   @default("flat") @map("commission_type")
   commissionValue Decimal  @default(0) @map("commission_value") @db.Decimal(15, 2)
+  minAmount       Decimal? @map("min_amount") @db.Decimal(15, 2)
+  maxAmount       Decimal? @map("max_amount") @db.Decimal(15, 2)
   chargeType      String   @default("flat") @map("charge_type")
   chargeValue     Decimal  @default(0) @map("charge_value") @db.Decimal(15, 2)
   isActive        Boolean  @default(true) @map("is_active")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  @@unique([targetUserId, serviceKey])
   @@map("user_commission_overrides")
 }
 

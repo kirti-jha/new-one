@@ -27,6 +27,7 @@ async function invoke(fn: string, body: Record<string, unknown>) {
     body = rest;
   }
 
+  console.log(`[InstantPay Service] Invoking ${fn} via endpoint ${endpoint}`);
   return apiFetch(endpoint, {
     method: "POST",
     body: JSON.stringify(body),

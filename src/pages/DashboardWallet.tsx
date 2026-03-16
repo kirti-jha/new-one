@@ -160,12 +160,15 @@ export default function DashboardWallet() {
   // Realtime removed, switching to refresh after actions
 
   const handleTopUp = async () => {
+    console.log(`[Wallet UI] Admin Top-up click. Target: ${topUpTarget}, Amount: ${topUpAmount}`);
     if (!topUpTarget || !topUpAmount || parseFloat(topUpAmount) <= 0) {
+      console.warn(`[Wallet UI] Validation failed for top-up`);
       toast({ title: "Invalid input", description: "Select user and enter a valid amount.", variant: "destructive" });
       return;
     }
     setProcessing(true);
     try {
+      console.log(`[Wallet UI] Calling POST /wallet/top-up for user ${topUpTarget}`);
       await apiFetch("/wallet/top-up", {
         method: "POST",
         body: JSON.stringify({ to_user_id: topUpTarget, amount: parseFloat(topUpAmount), description: topUpDesc || "Admin top-up" }),
@@ -182,12 +185,15 @@ export default function DashboardWallet() {
   };
 
   const handleTransfer = async () => {
+    console.log(`[Wallet UI] Transfer click. Target: ${transferTarget}, Amount: ${transferAmount}`);
     if (!transferTarget || !transferAmount || parseFloat(transferAmount) <= 0) {
+      console.warn(`[Wallet UI] Validation failed for transfer`);
       toast({ title: "Invalid input", description: "Select user and enter a valid amount.", variant: "destructive" });
       return;
     }
     setProcessing(true);
     try {
+      console.log(`[Wallet UI] Calling POST /wallet/transfer to user ${transferTarget}`);
       await apiFetch("/wallet/transfer", {
         method: "POST",
         body: JSON.stringify({ to_user_id: transferTarget, amount: parseFloat(transferAmount), description: transferDesc || "Fund transfer" }),
@@ -204,13 +210,16 @@ export default function DashboardWallet() {
   };
 
   const handlePGPayment = async () => {
+    console.log(`[Wallet UI] PG Add Fund click. Amount: ${pgAmount}`);
     const amt = parseFloat(pgAmount);
     if (!amt || amt <= 0) {
+      console.warn(`[Wallet UI] Validation failed for PG payment`);
       toast({ title: "Invalid amount", variant: "destructive" });
       return;
     }
     setProcessing(true);
     try {
+      console.log(`[Wallet UI] Calling POST /wallet/pg-add`);
       await apiFetch("/wallet/pg-add", {
         method: "POST",
         body: JSON.stringify({ amount: amt }),
@@ -227,13 +236,16 @@ export default function DashboardWallet() {
   };
 
   const handleBankDeposit = async () => {
+    console.log(`[Wallet UI] Bank Deposit click. Amount: ${bankAmount}, Ref: ${bankRef}`);
     const amt = parseFloat(bankAmount);
     if (!amt || amt <= 0 || !bankRef.trim()) {
+      console.warn(`[Wallet UI] Validation failed for bank deposit`);
       toast({ title: "Invalid input", description: "Enter a valid amount and bank reference.", variant: "destructive" });
       return;
     }
     setProcessing(true);
     try {
+      console.log(`[Wallet UI] Calling POST /wallet/bank-topup`);
       await apiFetch("/wallet/bank-topup", {
         method: "POST",
         body: JSON.stringify({ amount: amt, bank_reference: bankRef.trim(), bank_name: bankName.trim(), description: bankDesc.trim() }),

@@ -60,19 +60,29 @@ export function getStoredUser(): AppAuthUser | null {
 
 export async function apiFetch(endpoint: string, options: RequestInit = {}) {
   const token = getAuthToken();
+  const url = `${API_BASE_URL}${endpoint}`;
+  
+  console.log(`[Frontend API Request] ${options.method || "GET"} ${url}`);
+  if (options.body) {
+    console.log(`[Frontend API Payload]`, JSON.parse(options.body as string));
+  }
+
   const headers = {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const response = await fetch(url, {
     ...options,
     headers,
   });
 
   const data = await response.json().catch(() => ({}));
+  console.log(`[Frontend API Response] status=${response.status}`, data);
+
   if (!response.ok) {
+    console.error(`[Frontend API Error]`, data.error || data.message || "An error occurred");
     throw new Error(data.error || data.message || "An error occurred");
   }
   return data;

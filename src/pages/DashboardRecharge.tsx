@@ -55,7 +55,12 @@ export default function DashboardRecharge() {
     setLoadingTxns(true);
     try {
       const data = await apiFetch("/transactions?service=recharge");
-      setRecentRecharges(data as RechargeTxn[]);
+      if (Array.isArray(data)) {
+        setRecentRecharges(data.map((r: any) => ({
+          ...r,
+          created_at: r.createdAt || r.created_at
+        })) as RechargeTxn[]);
+      }
     } catch (err) {
       console.error("Error fetching recent recharges:", err);
     } finally {
@@ -64,24 +69,40 @@ export default function DashboardRecharge() {
   };
 
   const handleRechargeClick = () => {
+    console.log(`[Recharge UI] Button clicked. Mobile: ${mobileNumber}, Operator: ${selectedOperator}, Amount: ${selectedPlan}, Tab: ${tab}`);
+    
     if (!selectedPlan || selectedPlan <= 0) {
-      toast({ title: "Enter Amount", description: "Please select a plan or enter an amount.", variant: "destructive" });
+      console.warn(`[Recharge UI] Validation failed: Invalid amount ₹${selectedPlan}`);
+      toast({ title: "Enter Amount", description: "Please select a plan or enter a positive amount.", variant: "destructive" });
       return;
     }
     if (!mobileNumber || (tab !== "dth" && mobileNumber.length !== 10)) {
+      console.warn(`[Recharge UI] Validation failed: Invalid mobile/ID ${mobileNumber}`);
       toast({ title: "Enter Mobile/ID", description: "Please enter a valid number.", variant: "destructive" });
       return;
     }
     if (!selectedOperator) {
+      console.warn(`[Recharge UI] Validation failed: No operator selected`);
       toast({ title: "Select Operator", variant: "destructive" });
       return;
     }
+    
+    console.log(`[Recharge UI] Validation success. Opening TPIN dialog.`);
     setTpinOpen(true);
   };
 
   const processRecharge = async () => {
+    console.log(`[Recharge UI] Starting payment process...`);
     setProcessing(true);
     try {
+      console.log(`[Recharge UI] Calling bbpsService.recharge with parameters:`, {
+        biller_id: selectedOperator,
+        mobile_number: mobileNumber,
+        amount: selectedPlan!,
+        operator: selectedOperator,
+        recharge_type: "PREPAID",
+      });
+
       const res = await bbpsService.recharge({
         biller_id: selectedOperator, // operator biller ID from InstantPay
         mobile_number: mobileNumber,
@@ -89,7 +110,19 @@ export default function DashboardRecharge() {
         operator: selectedOperator,
         recharge_type: "PREPAID",
       });
-      toast({ title: "Recharge Successful! ✓", description: `₹${selectedPlan} recharge initiated. Ref: ${res?.data?.refId || "—"}` });
+
+      console.log(`[Recharge UI] API Response Received:`, res);
+
+      // Robust check for success vs failure
+      const isError = res.statuscode === "ERR" || res.statusCode === "ERR" || res.actcode === "EHR02" || res.status === "error";
+      
+      if (isError) {
+        console.error(`[Recharge UI] Recharge technically failed:`, res);
+        const errorMsg = res.status || res.message || (res.actcode === "EHR02" ? "Biller/Service not found (EHR02). Check operator." : "Provider error.");
+        throw new Error(errorMsg);
+      }
+
+      toast({ title: "Recharge Successful! ✓", description: `₹${selectedPlan} recharge initiated. Ref: ${res?.data?.refId || res?.txnId || "—"}` });
       setSelectedPlan(null); setMobileNumber(""); setSelectedOperator("");
       fetchRecentRecharges();
     } catch (e: any) {
@@ -132,14 +165,14 @@ export default function DashboardRecharge() {
                       <SelectTrigger><SelectValue placeholder="Select operator" /></SelectTrigger>
                       <SelectContent>
                         {operators[type as keyof typeof operators].map((op) => (
-                          <SelectItem key={op} value={op.toLowerCase()}>{op}</SelectItem>
+                          <SelectItem key={op} value={op.toUpperCase()}>{op}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
                     <Label>Amount (₹)</Label>
-                    <Input type="number" value={selectedPlan ?? ""} onChange={(e) => setSelectedPlan(Number(e.target.value))} placeholder="Enter amount" />
+                    <Input type="number" min="1" value={selectedPlan ?? ""} onChange={(e) => setSelectedPlan(Number(e.target.value))} placeholder="Enter amount" />
                   </div>
                   <Button className="w-full" onClick={handleRechargeClick} disabled={processing}>
                     {processing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
