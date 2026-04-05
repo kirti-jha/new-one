@@ -7,6 +7,11 @@ const API_KEY = process.env.INSTANTPAY_API_KEY || "";
 const CLIENT_ID = process.env.INSTANTPAY_CLIENT_ID || "";
 const ENC_KEY = process.env.INSTANTPAY_ENCRYPTION_KEY || "";
 
+type InstantPayResponse = {
+  statuscode?: string;
+  actcode?: string;
+};
+
 function generateSignature() {
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const signature = crypto.createHmac("sha256", ENC_KEY)
@@ -37,7 +42,7 @@ async function test(billerId: string) {
         clientRefId: "TEST_" + Date.now()
     })
   });
-  const data = await res.json();
+  const data = await res.json() as InstantPayResponse;
   console.log(`ID ${billerId}: ${res.status} | ${data.actcode || data.statuscode}`);
 }
 

@@ -7,6 +7,12 @@ const API_KEY = process.env.INSTANTPAY_API_KEY || "";
 const CLIENT_ID = process.env.INSTANTPAY_CLIENT_ID || "";
 const ENC_KEY = process.env.INSTANTPAY_ENCRYPTION_KEY || "";
 
+type InstantPayResponse = {
+  statuscode?: string;
+  actcode?: string;
+  data?: { billers?: any[] };
+};
+
 function generateSignature() {
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const signature = crypto.createHmac("sha256", ENC_KEY)
@@ -30,7 +36,7 @@ async function fetchBillers(cat: string) {
     },
     body: JSON.stringify({ category: cat })
   });
-  const data = await res.json();
+  const data = await res.json() as InstantPayResponse;
   console.log(`CAT ${cat} STATUS: ${res.status}`);
   if (data.statuscode === "TNP") {
       console.log(`SUCCESS! Found ${data.data.billers.length} billers`);
