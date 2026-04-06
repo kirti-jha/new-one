@@ -33,7 +33,42 @@ async function main() {
 
     console.log("Creating UserRole...");
     await prisma.userRole.create({
-        data: { userId, role: "admin" },
+        data: { userId, role: "admin" as any },
+    });
+
+    console.log("Creating StaffPermission...");
+    await prisma.staffPermission.create({
+        data: {
+            userId,
+            // Section Master Flags
+            canManageUsers: true,
+            canManageFinance: true,
+            canManageCommissions: true,
+            canManageServices: true,
+            canManageSupport: true,
+            // Users Sub-actions
+            canCreateUsers: true,
+            canEditUsers: true,
+            canBlockUsers: true,
+            canDeleteUsers: true,
+            canManageUserServices: true,
+            canChangeUserRoles: true,
+            canResetUserPasswords: true,
+            canViewUserDocs: true,
+            // Finance Sub-actions
+            canApproveFundRequests: true,
+            canRejectFundRequests: true,
+            canManageBankAccounts: true,
+            canViewTransactions: true,
+            canPerformWalletTransfer: true,
+            // Others Sub-actions
+            canManageGlobalServices: true,
+            canManageSettings: true,
+            canManageSecurity: true,
+            canReplySupportTickets: true,
+            canViewReports: true,
+            grantedBy: userId,
+        },
     });
 
     console.log("Creating Wallet...");

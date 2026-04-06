@@ -276,13 +276,42 @@ model SupportTicket {
 model StaffPermission {
   id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId              String   @unique @map("user_id") @db.Uuid
-  canManageUsers      Boolean  @default(true) @map("can_manage_users")
-  canManageFinances   Boolean  @default(true) @map("can_manage_finances")
-  canManageCommissions Boolean @default(true) @map("can_manage_commissions")
-  canManageServices   Boolean  @default(true) @map("can_manage_services")
+  
+  // Section Masters
+  canManageUsers      Boolean  @default(false) @map("can_manage_users_master")
+  canManageFinance    Boolean  @default(false) @map("can_manage_finance_master")
+  canManageCommissions Boolean @default(false) @map("can_manage_commissions_master")
+  canManageServices   Boolean  @default(false) @map("can_manage_services_master")
+  canManageSupport    Boolean  @default(false) @map("can_manage_support_master")
+
+  // Users Section (Sub-actions)
+  canCreateUsers      Boolean  @default(false) @map("can_create_users")
+  canEditUsers        Boolean  @default(false) @map("can_edit_users")
+  canBlockUsers       Boolean  @default(false) @map("can_block_users")
+  canDeleteUsers      Boolean  @default(false) @map("can_delete_users")
+  canManageUserServices Boolean @default(false) @map("can_manage_user_services")
+  canChangeUserRoles  Boolean  @default(false) @map("can_change_user_roles")
+  canResetUserPasswords Boolean @default(false) @map("can_reset_user_passwords")
+  canViewUserDocs     Boolean  @default(true)  @map("can_view_user_docs")
+  
+  // Finance Section (Sub-actions)
+  canApproveFundRequests  Boolean @default(false) @map("can_approve_fund_requests")
+  canRejectFundRequests   Boolean @default(false) @map("can_reject_fund_requests")
+  canManageBankAccounts   Boolean @default(false) @map("can_manage_bank_accounts")
+  canViewTransactions     Boolean @default(true)  @map("can_view_transactions")
+  canPerformWalletTransfer Boolean @default(false) @map("can_perform_wallet_transfer")
+  
+  // Commissions Section (Sub-actions) -- (Already has a master-like flag)
+  
+  // Services & Config (Sub-actions)
+  canManageGlobalServices Boolean @default(false) @map("can_manage_services") // Renamed to avoid collision
   canManageSettings   Boolean  @default(false) @map("can_manage_settings")
   canManageSecurity   Boolean  @default(false) @map("can_manage_security")
-  canViewReports      Boolean  @default(true) @map("can_view_reports")
+  
+  // Support & Reports (Sub-actions)
+  canReplySupportTickets Boolean @default(true) @map("can_reply_support_tickets")
+  canViewReports        Boolean  @default(true) @map("can_view_reports")
+  
   grantedBy           String   @map("granted_by") @db.Uuid
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")

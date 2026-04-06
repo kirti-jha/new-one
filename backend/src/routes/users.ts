@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { prisma } from "../index";
 import { requireAuth, AuthRequest } from "../middleware/auth";
+import { requirePermission } from "../middleware/permissions";
 import { ensureServiceConfigSeed } from "../lib/ensureServiceConfigSeed";
 
 const router = Router();
@@ -253,6 +254,29 @@ router.post("/manage", requireAuth, async (req: AuthRequest, res) => {
       }
     }
 
+    // --- Granular Permission Checks for Admins ---
+    if (callerRole.role === "admin" && !callerProfile.isMasterAdmin) {
+      const permMap: Record<string, string> = {
+        edit_profile: "canEditUsers",
+        change_role: "canChangeUserRoles",
+        block: "canBlockUsers",
+        unblock: "canBlockUsers",
+        toggle_service: "canManageUserServices",
+        update_documents: "canEditUsers", // or canViewUserDocs
+        delete: "canDeleteUsers",
+        reset_password: "canResetUserPasswords",
+        impersonate: "canManageSecurity", // Impersonation is high security
+      };
+
+      const requiredPerm = permMap[action];
+      if (requiredPerm) {
+        const perms = await prisma.staffPermission.findUnique({ where: { userId: callerId } });
+        if (!perms || !(perms as any)[requiredPerm]) {
+          return res.status(403).json({ error: "Permission denied", requiredPermission: requiredPerm });
+        }
+      }
+    }
+
     // Action handling
     switch (action) {
       case "edit_profile": {
@@ -322,6 +346,30 @@ router.post("/manage", requireAuth, async (req: AuthRequest, res) => {
         return res.json({ success: true, message: "Document paths updated" });
       }
 
+      case "delete": {
+        if (callerRole.role !== "admin") return res.status(403).json({ error: "Only admins can delete users" });
+
+        const targetWallet = await prisma.wallet.findUnique({ where: { userId: target_user_id } });
+        if (targetWallet && Number(targetWallet.balance) > 0) {
+          return res.status(400).json({ error: "Cannot delete user with non-zero wallet balance" });
+        }
+
+        await prisma.$transaction(async (tx) => {
+          // 1. Service overrides
+          await tx.userServiceOverride.deleteMany({ where: { userId: target_user_id } });
+          // 2. Roles
+          await tx.userRole.deleteMany({ where: { userId: target_user_id } });
+          // 3. Wallet
+          await tx.wallet.deleteMany({ where: { userId: target_user_id } });
+          // 4. Profile
+          await tx.profile.deleteMany({ where: { userId: target_user_id } });
+          // 5. AuthUser
+          await tx.authUser.deleteMany({ where: { userId: target_user_id } });
+        });
+
+        return res.json({ success: true, message: "User deleted successfully" });
+      }
+
       case "impersonate": {
         if (callerRole.role !== "admin") return res.status(403).json({ error: "Only admins can impersonate" });
         const secret = process.env.BACKEND_JWT_SECRET || "dev_backend_secret_change_me";
@@ -357,7 +405,7 @@ router.post("/manage", requireAuth, async (req: AuthRequest, res) => {
 });
 
 // POST /api/users — creation of a new user
-router.post("/", requireAuth, async (req: AuthRequest, res) => {
+router.post("/", requireAuth, requirePermission("canCreateUsers"), async (req: AuthRequest, res) => {
   const { email, password, full_name, role, parent_id, ...extra } = req.body;
   try {
     const callerRole = await prisma.userRole.findFirst({ where: { userId: req.userId! } });

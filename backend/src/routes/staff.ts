@@ -45,14 +45,34 @@ router.get("/admins", requireAuth, async (req: AuthRequest, res) => {
         is_master_admin: p.isMasterAdmin,
         permissions: permMap.get(p.userId)
           ? {
-              id: permMap.get(p.userId)!.id,
-              can_manage_users: permMap.get(p.userId)!.canManageUsers,
-              can_manage_finances: permMap.get(p.userId)!.canManageFinances,
-              can_manage_commissions: permMap.get(p.userId)!.canManageCommissions,
-              can_manage_services: permMap.get(p.userId)!.canManageServices,
-              can_manage_settings: permMap.get(p.userId)!.canManageSettings,
-              can_manage_security: permMap.get(p.userId)!.canManageSecurity,
-              can_view_reports: permMap.get(p.userId)!.canViewReports,
+              id: (permMap.get(p.userId) as any).id,
+              // Section Masters
+              can_manage_users: (permMap.get(p.userId) as any).canManageUsers,
+              can_manage_finance: (permMap.get(p.userId) as any).canManageFinance,
+              can_manage_commissions: (permMap.get(p.userId) as any).canManageCommissions,
+              can_manage_services: (permMap.get(p.userId) as any).canManageServices,
+              can_manage_support: (permMap.get(p.userId) as any).canManageSupport,
+              // Users
+              can_create_users: (permMap.get(p.userId) as any).canCreateUsers,
+              can_edit_users: (permMap.get(p.userId) as any).canEditUsers,
+              can_block_users: (permMap.get(p.userId) as any).canBlockUsers,
+              can_delete_users: (permMap.get(p.userId) as any).canDeleteUsers,
+              can_manage_user_services: (permMap.get(p.userId) as any).canManageUserServices,
+              can_change_user_roles: (permMap.get(p.userId) as any).canChangeUserRoles,
+              can_reset_user_passwords: (permMap.get(p.userId) as any).canResetUserPasswords,
+              can_view_user_docs: (permMap.get(p.userId) as any).canViewUserDocs,
+              // Finance
+              can_approve_fund_requests: (permMap.get(p.userId) as any).canApproveFundRequests,
+              can_reject_fund_requests: (permMap.get(p.userId) as any).canRejectFundRequests,
+              can_manage_bank_accounts: (permMap.get(p.userId) as any).canManageBankAccounts,
+              can_view_transactions: (permMap.get(p.userId) as any).canViewTransactions,
+              can_perform_wallet_transfer: (permMap.get(p.userId) as any).canPerformWalletTransfer,
+              // Others
+              can_manage_global_services: (permMap.get(p.userId) as any).canManageGlobalServices,
+              can_manage_settings: (permMap.get(p.userId) as any).canManageSettings,
+              can_manage_security: (permMap.get(p.userId) as any).canManageSecurity,
+              can_reply_support_tickets: (permMap.get(p.userId) as any).canReplySupportTickets,
+              can_view_reports: (permMap.get(p.userId) as any).canViewReports,
             }
           : null,
       }))
@@ -73,7 +93,7 @@ router.post("/admins", requireAuth, async (req: AuthRequest, res) => {
     const password = String(req.body?.password || "");
     const fullName = String(req.body?.full_name || "").trim();
     const phone = String(req.body?.phone || "").trim();
-    const permissions = req.body?.permissions || {};
+    const p = req.body?.permissions || {};
 
     if (!email || !password || !fullName) {
       return res.status(400).json({ error: "email, password, full_name are required" });
@@ -101,24 +121,46 @@ router.post("/admins", requireAuth, async (req: AuthRequest, res) => {
         },
       });
       await tx.userRole.create({
-        data: { userId, role: "admin" },
+        data: { userId, role: "admin" as any },
       });
       await tx.wallet.create({
         data: { userId, balance: 0, eWalletBalance: 0 },
       });
-      await tx.staffPermission.create({
+      await (tx.staffPermission as any).create({
         data: {
           userId,
           grantedBy: req.userId!,
-          canManageUsers: !!permissions.can_manage_users,
-          canManageFinances: !!permissions.can_manage_finances,
-          canManageCommissions: !!permissions.can_manage_commissions,
-          canManageServices: !!permissions.can_manage_services,
-          canManageSettings: !!permissions.can_manage_settings,
-          canManageSecurity: !!permissions.can_manage_security,
-          canViewReports: !!permissions.can_view_reports,
+          // Section Masters
+          canManageUsers: !!p.can_manage_users,
+          canManageFinance: !!p.can_manage_finance,
+          canManageCommissions: !!p.can_manage_commissions,
+          canManageServices: !!p.can_manage_services,
+          canManageSupport: !!p.can_manage_support,
+          // Users
+          canCreateUsers: !!p.can_create_users,
+          canEditUsers: !!p.can_edit_users,
+          canBlockUsers: !!p.can_block_users,
+          canDeleteUsers: !!p.can_delete_users,
+          canManageUserServices: !!p.can_manage_user_services,
+          canChangeUserRoles: !!p.can_change_user_roles,
+          canResetUserPasswords: !!p.can_reset_user_passwords,
+          canViewUserDocs: p.can_view_user_docs !== false,
+          // Finance
+          canApproveFundRequests: !!p.can_approve_fund_requests,
+          canRejectFundRequests: !!p.can_reject_fund_requests,
+          canManageBankAccounts: !!p.can_manage_bank_accounts,
+          canViewTransactions: p.can_view_transactions !== false,
+          canPerformWalletTransfer: !!p.can_perform_wallet_transfer,
+          // Others
+          canManageGlobalServices: !!p.can_manage_global_services,
+          canManageSettings: !!p.can_manage_settings,
+          canManageSecurity: !!p.can_manage_security,
+          canReplySupportTickets: p.can_reply_support_tickets !== false,
+          canViewReports: p.can_view_reports !== false,
         },
       });
+    }, {
+      timeout: 15000,
     });
 
     res.json({ success: true, user_id: userId });
@@ -142,28 +184,68 @@ router.patch("/permissions/:userId", requireAuth, async (req: AuthRequest, res) 
     }
 
     const p = req.body || {};
-    const updated = await prisma.staffPermission.upsert({
+    const updated = await (prisma.staffPermission as any).upsert({
       where: { userId: targetUserId },
       create: {
         userId: targetUserId,
         grantedBy: req.userId!,
+        // Section Masters
         canManageUsers: !!p.can_manage_users,
-        canManageFinances: !!p.can_manage_finances,
+        canManageFinance: !!p.can_manage_finance,
         canManageCommissions: !!p.can_manage_commissions,
         canManageServices: !!p.can_manage_services,
+        canManageSupport: !!p.can_manage_support,
+        // Users
+        canCreateUsers: !!p.can_create_users,
+        canEditUsers: !!p.can_edit_users,
+        canBlockUsers: !!p.can_block_users,
+        canDeleteUsers: !!p.can_delete_users,
+        canManageUserServices: !!p.can_manage_user_services,
+        canChangeUserRoles: !!p.can_change_user_roles,
+        canResetUserPasswords: !!p.can_reset_user_passwords,
+        canViewUserDocs: p.can_view_user_docs !== false,
+        // Finance
+        canApproveFundRequests: !!p.can_approve_fund_requests,
+        canRejectFundRequests: !!p.can_reject_fund_requests,
+        canManageBankAccounts: !!p.can_manage_bank_accounts,
+        canViewTransactions: p.can_view_transactions !== false,
+        canPerformWalletTransfer: !!p.can_perform_wallet_transfer,
+        // Others
+        canManageGlobalServices: !!p.can_manage_global_services,
         canManageSettings: !!p.can_manage_settings,
         canManageSecurity: !!p.can_manage_security,
-        canViewReports: !!p.can_view_reports,
+        canReplySupportTickets: p.can_reply_support_tickets !== false,
+        canViewReports: p.can_view_reports !== false,
       },
       update: {
+        grantedBy: req.userId!,
+        // Section Masters
         canManageUsers: !!p.can_manage_users,
-        canManageFinances: !!p.can_manage_finances,
+        canManageFinance: !!p.can_manage_finance,
         canManageCommissions: !!p.can_manage_commissions,
         canManageServices: !!p.can_manage_services,
+        canManageSupport: !!p.can_manage_support,
+        // Users
+        canCreateUsers: !!p.can_create_users,
+        canEditUsers: !!p.can_edit_users,
+        canBlockUsers: !!p.can_block_users,
+        canDeleteUsers: !!p.can_delete_users,
+        canManageUserServices: !!p.can_manage_user_services,
+        canChangeUserRoles: !!p.can_change_user_roles,
+        canResetUserPasswords: !!p.can_reset_user_passwords,
+        canViewUserDocs: p.can_view_user_docs !== false,
+        // Finance
+        canApproveFundRequests: !!p.can_approve_fund_requests,
+        canRejectFundRequests: !!p.can_reject_fund_requests,
+        canManageBankAccounts: !!p.can_manage_bank_accounts,
+        canViewTransactions: p.can_view_transactions !== false,
+        canPerformWalletTransfer: !!p.can_perform_wallet_transfer,
+        // Others
+        canManageGlobalServices: !!p.can_manage_global_services,
         canManageSettings: !!p.can_manage_settings,
         canManageSecurity: !!p.can_manage_security,
-        canViewReports: !!p.can_view_reports,
-        grantedBy: req.userId!,
+        canReplySupportTickets: p.can_reply_support_tickets !== false,
+        canViewReports: p.can_view_reports !== false,
       },
     });
 

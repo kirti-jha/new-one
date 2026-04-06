@@ -3,7 +3,7 @@ import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Zap, Eye, EyeOff, LogIn, ArrowLeft, KeyRound, ShieldCheck, Mail } from "lucide-react";
+import { Zap, Eye, EyeOff, LogIn, ArrowLeft, KeyRound, ShieldCheck, Mail, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiFetch, setAuthSession } from "@/services/api";
 import usePageTitle from "@/hooks/usePageTitle";
@@ -282,65 +282,123 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4 relative overflow-hidden">
+      {/* 1. Grid & Mesh Layer */}
+      <div className="absolute inset-0 bg-grid opacity-20 pointer-events-none" />
+      <div className="absolute inset-0 bg-mesh pointer-events-none" />
+      
+      {/* 2. Parallax Floating Elements */}
+      <div className="absolute top-[10%] left-[5%] w-64 h-64 bg-primary/20 rounded-full blur-[100px] animate-blob pointer-events-none" />
+      <div className="absolute bottom-[10%] right-[5%] w-80 h-80 bg-accent/20 rounded-full blur-[120px] animate-blob pointer-events-none animation-delay-2000" />
+      <div className="absolute top-[40%] right-[15%] w-32 h-32 bg-primary/10 rounded-full blur-[60px] animate-blob pointer-events-none animation-delay-4000" />
+      
+      {/* 3. Small Sharp Particles */}
+      <div className="absolute top-[20%] left-[20%] w-3 h-3 bg-primary/40 rounded-full blur-sm animate-float" />
+      <div className="absolute bottom-[30%] right-[25%] w-2 h-2 bg-accent/40 rounded-full blur-sm animate-float animation-delay-2000" />
+      <div className="absolute top-[60%] left-[40%] w-4 h-4 bg-primary/20 rounded-full blur-sm animate-float animation-delay-4000" />
+
       <div className="bg-gradient-glow fixed inset-0 pointer-events-none" />
-      <div className="w-full max-w-md relative">
-        <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center mb-4">
-            <img
-              src="https://pos.abheepay.com/assets/FORMAT-PNG-Lj3U1uY2.png"
-              alt="ABHEEPAY"
-              className="h-14 w-auto"
-            />
+      
+      <div className="w-full max-w-md relative z-10">
+        {/* Logo & Header with entry animation */}
+        <div className="text-center mb-10 animate-in fade-in slide-in-from-top-10 duration-1000">
+          <Link to="/" className="inline-flex items-center mb-6 animate-float">
+            <div className="relative group">
+              <div className="absolute inset-0 bg-primary/30 blur-2xl group-hover:bg-primary/50 transition-all rounded-full" />
+              <img
+                src="https://pos.abheepay.com/assets/FORMAT-PNG-Lj3U1uY2.png"
+                alt="ABHEEPAY"
+                className="h-20 w-auto relative z-10 drop-shadow-[0_0_15px_rgba(187,85,53,0.5)]"
+              />
+            </div>
           </Link>
-          <p className="text-muted-foreground text-sm">
-            {forgotStep === "idle" ? "Sign in to your account" : "Reset your password"}
+          <h2 className="text-3xl font-heading font-black text-foreground tracking-tighter sm:text-4xl text-gradient-primary">
+            {forgotStep === "idle" ? "AbheePay" : "Reset Access"}
+          </h2>
+          <p className="text-muted-foreground text-sm mt-3 font-medium tracking-wide uppercase opacity-80">
+            {forgotStep === "idle" ? "Secure Partner Portal" : "Identity Verification"}
           </p>
         </div>
 
         {forgotStep !== "idle" ? (
-          renderForgotPassword()
+          <div className="animate-in fade-in zoom-in-95 duration-500">
+            {renderForgotPassword()}
+          </div>
         ) : (
-          <form onSubmit={handleLogin} className="rounded-2xl bg-gradient-card border border-border p-8 space-y-5 shadow-elevated">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email" type="email" placeholder="you@example.com"
-                value={email} onChange={(e) => setEmail(e.target.value)}
-                required className="bg-secondary/50"
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-                <button
-                  type="button"
-                  onClick={() => setForgotStep("identity")}
-                  className="text-xs text-primary hover:text-primary/80 font-medium"
-                >
-                  Forgot Password?
-                </button>
+          <form onSubmit={handleLogin} className="glass-premium rounded-3xl border border-white/10 p-8 sm:p-10 space-y-8 shadow-elevated relative overflow-hidden animate-in fade-in slide-in-from-bottom-10 duration-1000">
+            {/* Inner Glow */}
+            <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/10 blur-3xl pointer-events-none" />
+            
+            <div className="space-y-6">
+              {/* Field 1: Email */}
+              <div className="space-y-2 animate-in fade-in slide-in-from-left-5 duration-700 delay-100">
+                <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 opacity-60">
+                  Identification / Email
+                </Label>
+                <div className="relative group">
+                  <Input
+                    id="email" type="email" placeholder="partner@abheepay.com"
+                    value={email} onChange={(e) => setEmail(e.target.value)}
+                    required className="bg-white/[0.03] border-white/5 h-12 rounded-xl focus:bg-white/[0.07] focus:border-primary/50 transition-all duration-300 placeholder:opacity-30"
+                  />
+                  <div className="absolute bottom-0 left-0 h-[2px] w-0 bg-primary group-focus-within:w-full transition-all duration-500" />
+                </div>
               </div>
-              <div className="relative">
-                <Input
-                  id="password" type={showPassword ? "text" : "password"} placeholder="••••••••"
-                  value={password} onChange={(e) => setPassword(e.target.value)}
-                  required className="bg-secondary/50 pr-10"
-                />
-                <button type="button" onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+
+              {/* Field 2: Password */}
+              <div className="space-y-2 animate-in fade-in slide-in-from-left-5 duration-700 delay-200">
+                <div className="flex items-center justify-between ml-1">
+                  <Label htmlFor="password" className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">
+                    Security Key
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={() => setForgotStep("identity")}
+                    className="text-[10px] text-primary hover:text-white font-bold uppercase tracking-wider transition-colors"
+                  >
+                    Recover?
+                  </button>
+                </div>
+                <div className="relative group">
+                  <Input
+                    id="password" type={showPassword ? "text" : "password"} placeholder="••••••••••••"
+                    value={password} onChange={(e) => setPassword(e.target.value)}
+                    required className="bg-white/[0.03] border-white/5 h-12 rounded-xl pr-12 focus:bg-white/[0.07] focus:border-primary/50 transition-all duration-300 placeholder:opacity-30"
+                  />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors">
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                  <div className="absolute bottom-0 left-0 h-[2px] w-0 bg-primary group-focus-within:w-full transition-all duration-500" />
+                </div>
               </div>
             </div>
-            <Button type="submit" className="w-full bg-gradient-primary text-primary-foreground font-semibold" disabled={loading}>
-              <LogIn className="w-4 h-4 mr-2" />
-              {loading ? "Signing in..." : "Sign In"}
-            </Button>
-            <p className="text-center text-xs text-muted-foreground">
-              Accounts are created by your administrator.<br />
-              Contact your upline or admin for access.
-            </p>
+
+            {/* Submit Button */}
+            <div className="animate-in fade-in slide-in-from-bottom-5 duration-700 delay-300">
+              <Button type="submit" className="w-full bg-gradient-primary text-primary-foreground font-black h-14 rounded-2xl shadow-glow hover:scale-[1.02] active:scale-[0.98] transition-all relative overflow-hidden group/btn" disabled={loading}>
+                <div className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-1000 ease-in-out" />
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-3 animate-spin" />
+                    Authenticating...
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="w-5 h-5 mr-3 group-hover/btn:translate-x-1 transition-transform" />
+                    Authorized Sign In
+                  </>
+                )}
+              </Button>
+            </div>
+            
+            {/* Footer */}
+            <div className="pt-6 border-t border-white/5 animate-in fade-in duration-1000 delay-400">
+              <p className="text-center text-[10px] text-muted-foreground leading-relaxed font-medium uppercase tracking-widest opacity-40">
+                Restricted Access System<br />
+                © 2026 ABHEEPAY DIGITAL SOLUTIONS
+              </p>
+            </div>
           </form>
         )}
       </div>

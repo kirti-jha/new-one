@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../index";
 import { requireAuth, AuthRequest } from "../middleware/auth";
+import { requirePermission } from "../middleware/permissions";
 
 const router = Router();
 
@@ -88,7 +89,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
 });
 
 // PATCH /api/fund-requests/:id/approve — approve a fund request
-router.patch("/:id/approve", requireAuth, async (req: AuthRequest, res) => {
+router.patch("/:id/approve", requireAuth, requirePermission("canApproveFundRequests"), async (req: AuthRequest, res) => {
   try {
     const fundReq = await prisma.fundRequest.findUnique({ where: { id: req.params.id } });
     if (!fundReq) return res.status(404).json({ error: "Not found" });
@@ -135,7 +136,7 @@ router.patch("/:id/approve", requireAuth, async (req: AuthRequest, res) => {
 });
 
 // PATCH /api/fund-requests/:id/reject — reject a fund request
-router.patch("/:id/reject", requireAuth, async (req: AuthRequest, res) => {
+router.patch("/:id/reject", requireAuth, requirePermission("canRejectFundRequests"), async (req: AuthRequest, res) => {
   const { reason } = req.body;
   try {
     const fundReq = await prisma.fundRequest.update({
@@ -182,7 +183,7 @@ router.get("/bank-accounts/all", requireAuth, async (req: AuthRequest, res) => {
 });
 
 // POST /api/fund-requests/bank-accounts — add a new bank account (admin only)
-router.post("/bank-accounts", requireAuth, async (req: AuthRequest, res) => {
+router.post("/bank-accounts", requireAuth, requirePermission("canManageBankAccounts"), async (req: AuthRequest, res) => {
   const { bank_name, account_name, account_number, ifsc_code, upi_id } = req.body;
   try {
     const roleRow = await prisma.userRole.findFirst({ where: { userId: req.userId! } });
@@ -205,7 +206,7 @@ router.post("/bank-accounts", requireAuth, async (req: AuthRequest, res) => {
 });
 
 // PATCH /api/fund-requests/bank-accounts/:id — update a bank account (admin only)
-router.patch("/bank-accounts/:id", requireAuth, async (req: AuthRequest, res) => {
+router.patch("/bank-accounts/:id", requireAuth, requirePermission("canManageBankAccounts"), async (req: AuthRequest, res) => {
   try {
     const roleRow = await prisma.userRole.findFirst({ where: { userId: req.userId! } });
     if (roleRow?.role !== "admin") return res.status(403).json({ error: "Forbidden" });
@@ -228,7 +229,7 @@ router.patch("/bank-accounts/:id", requireAuth, async (req: AuthRequest, res) =>
 });
 
 // PATCH /api/fund-requests/bank-accounts/:id/toggle — toggle bank account status
-router.patch("/bank-accounts/:id/toggle", requireAuth, async (req: AuthRequest, res) => {
+router.patch("/bank-accounts/:id/toggle", requireAuth, requirePermission("canManageBankAccounts"), async (req: AuthRequest, res) => {
   try {
     const roleRow = await prisma.userRole.findFirst({ where: { userId: req.userId! } });
     if (roleRow?.role !== "admin") return res.status(403).json({ error: "Forbidden" });

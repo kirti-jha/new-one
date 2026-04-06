@@ -15,22 +15,58 @@ interface Profile {
 }
 
 export interface StaffPermissions {
+  // Section Masters
   can_manage_users: boolean;
-  can_manage_finances: boolean;
+  can_manage_finance: boolean;
   can_manage_commissions: boolean;
   can_manage_services: boolean;
+  can_manage_support: boolean;
+  // Users
+  can_create_users: boolean;
+  can_edit_users: boolean;
+  can_block_users: boolean;
+  can_delete_users: boolean;
+  can_manage_user_services: boolean;
+  can_change_user_roles: boolean;
+  can_reset_user_passwords: boolean;
+  can_view_user_docs: boolean;
+  // Finance
+  can_approve_fund_requests: boolean;
+  can_reject_fund_requests: boolean;
+  can_manage_bank_accounts: boolean;
+  can_view_transactions: boolean;
+  can_perform_wallet_transfer: boolean;
+  // Others
+  can_manage_global_services: boolean;
   can_manage_settings: boolean;
   can_manage_security: boolean;
+  can_reply_support_tickets: boolean;
   can_view_reports: boolean;
 }
 
 const DEFAULT_PERMISSIONS: StaffPermissions = {
-  can_manage_users: true,
-  can_manage_finances: true,
-  can_manage_commissions: true,
-  can_manage_services: true,
-  can_manage_settings: true,
-  can_manage_security: true,
+  can_manage_users: false,
+  can_manage_finance: false,
+  can_manage_commissions: false,
+  can_manage_services: false,
+  can_manage_support: false,
+  can_create_users: false,
+  can_edit_users: false,
+  can_block_users: false,
+  can_delete_users: false,
+  can_manage_user_services: false,
+  can_change_user_roles: false,
+  can_reset_user_passwords: false,
+  can_view_user_docs: true,
+  can_approve_fund_requests: false,
+  can_reject_fund_requests: false,
+  can_manage_bank_accounts: false,
+  can_view_transactions: true,
+  can_perform_wallet_transfer: false,
+  can_manage_global_services: false,
+  can_manage_settings: false,
+  can_manage_security: false,
+  can_reply_support_tickets: true,
   can_view_reports: true,
 };
 

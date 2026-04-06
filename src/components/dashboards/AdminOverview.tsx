@@ -22,7 +22,7 @@ const revenueData = [
   { date: "Mar 8", volume: 12832450, commission: 384973 },
 ];
 
-const PIE_COLORS = ["hsl(var(--primary))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))"];
+const PIE_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))"];
 
 const systemAlerts = [
   { msg: "AEPS gateway latency > 2s", severity: "warning", time: "5 min ago" },
