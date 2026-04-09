@@ -1,7 +1,9 @@
-import { Router } from "express";
+import { Router, Request } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "crypto";
+import fs from "fs";
+import path from "path";
 import { prisma } from "../index";
 import { requireAuth, AuthRequest } from "../middleware/auth";
 
@@ -9,6 +11,22 @@ const router = Router();
 
 type PendingReset = { otp: string; resetToken?: string; expiresAt: number };
 const resetStore = new Map<string, PendingReset>();
+
+const loginDebugDir = path.join(process.cwd(), "logs");
+const loginDebugFile = path.join(loginDebugDir, "login-debug.log");
+
+async function appendLoginDebug(message: string) {
+  try {
+    await fs.promises.mkdir(loginDebugDir, { recursive: true });
+    await fs.promises.appendFile(loginDebugFile, message + "\n", "utf8");
+  } catch (err) {
+    console.error("Failed to write login-debug log", err);
+  }
+}
+
+function buildLoginDebugLine(req: Request, event: string, details: string) {
+  return `${new Date().toISOString()} | login | ip=${req.ip || "unknown"} | event=${event} | ${details}`;
+}
 
 function signBackendToken(userId: string) {
   const secret = process.env.BACKEND_JWT_SECRET || "dev_backend_secret_change_me";
@@ -20,21 +38,44 @@ router.post("/login", async (req, res) => {
   const password = String(req.body?.password || "");
   if (!email || !password) return res.status(400).json({ error: "Email and password are required" });
 
+  await appendLoginDebug(
+    buildLoginDebugLine(req, "received", `email=${email} password_present=${Boolean(password)}`)
+  );
+
   try {
     const authUser = await prisma.authUser.findUnique({ where: { email } });
-    if (!authUser || !authUser.isActive) return res.status(401).json({ error: "Invalid credentials" });
+    await appendLoginDebug(
+      buildLoginDebugLine(
+        req,
+        "lookup",
+        `found=${Boolean(authUser)} active=${authUser?.isActive ?? "n/a"}`
+      )
+    );
+
+    if (!authUser || !authUser.isActive) {
+      await appendLoginDebug(buildLoginDebugLine(req, "failed", "reason=invalid_credentials"));
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
 
     const ok = await bcrypt.compare(password, authUser.passwordHash);
-    if (!ok) return res.status(401).json({ error: "Invalid credentials" });
+    await appendLoginDebug(buildLoginDebugLine(req, "password_check", `ok=${ok}`));
+    if (!ok) {
+      await appendLoginDebug(buildLoginDebugLine(req, "failed", "reason=invalid_credentials"));
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
 
     const token = signBackendToken(authUser.userId);
     const profile = await prisma.profile.findUnique({ where: { userId: authUser.userId } });
+    await appendLoginDebug(
+      buildLoginDebugLine(req, "success", `userId=${authUser.userId} profile_found=${Boolean(profile)}`)
+    );
     return res.json({
       access_token: token,
       user: { id: authUser.userId, email: authUser.email },
       profile,
     });
   } catch (e: any) {
+    await appendLoginDebug(buildLoginDebugLine(req, "error", `message=${String(e?.message ?? e)}`));
     return res.status(500).json({ error: e.message });
   }
 });
