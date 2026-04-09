@@ -23,6 +23,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { StaffPermissionsDialog } from "@/components/dashboards/StaffPermissionsDialog";
+import { usePermissions } from "@/hooks/usePermissions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Trash2 } from "lucide-react";
 
 type AppRole = "admin" | "super_distributor" | "master_distributor" | "distributor" | "retailer";
 
@@ -74,9 +87,11 @@ interface ServiceToggle {
 
 export default function DashboardUsers() {
   const { user: currentUser, role: myRole } = useAuth();
+  const { hasPermission, isAdmin: isGlobalAdmin } = usePermissions();
   const { toast } = useToast();
   const isAdmin = myRole === "admin";
   const canManage = myRole ? ROLE_LEVEL[myRole] < 5 : false;
+  const isMasterAdmin = currentUser?.isMasterAdmin;
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -133,6 +148,15 @@ export default function DashboardUsers() {
   const [serviceUser, setServiceUser] = useState<UserRow | null>(null);
   const [serviceToggles, setServiceToggles] = useState<ServiceToggle[]>([]);
   const [togglingService, setTogglingService] = useState<string | null>(null);
+  
+  // Delete dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<UserRow | null>(null);
+
+  // Permissions dialog
+  const [permsOpen, setPermsOpen] = useState(false);
+  const [permsUser, setPermsUser] = useState<UserRow | null>(null);
+  const [permsData, setPermsData] = useState<any>(null);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -399,6 +423,27 @@ export default function DashboardUsers() {
     setResetOpen(true);
   };
 
+  const openPerms = (u: UserRow) => {
+    setPermsUser(u);
+    // The fetchUsers call already brings permissions for admins (from staff.ts)
+    // We need to find the correct entry or fetch it. 
+    // In our case, the 'users' array contains the full row, let's see if permissions are there
+    const fullUser = users.find(user => user.user_id === u.user_id);
+    setPermsData((fullUser as any)?.permissions || {});
+    setPermsOpen(true);
+  };
+
+  const handleDeleteClick = (u: UserRow) => {
+    setUserToDelete(u);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return;
+    const ok = await invokeManageUser("delete", userToDelete.user_id);
+    if (ok) setDeleteDialogOpen(false);
+  };
+
   const filtered = users.filter((u) => {
     const q = searchInput.toLowerCase();
     const matchesSearch = !q || u.full_name?.toLowerCase().includes(q) || u.phone?.toLowerCase().includes(q) ||
@@ -455,7 +500,7 @@ export default function DashboardUsers() {
             <p className="text-sm text-primary-foreground/70 mt-0.5">Manage all registered users, distributors & retailers</p>
           </div>
         </div>
-        {(isAdmin || canManage) && (
+        {(isAdmin || canManage) && hasPermission("can_create_users") && (
           <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)} className="bg-primary-foreground/10 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/20">
             <UserPlus className="w-4 h-4 mr-1.5" /> Add New User
           </Button>
@@ -600,18 +645,30 @@ export default function DashboardUsers() {
                                 <LogIn className="w-4 h-4 mr-2" /> Login as User
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => openEdit(u)}>
+                              <DropdownMenuItem 
+                                onClick={() => openEdit(u)} 
+                                disabled={!hasPermission("can_edit_users")}
+                              >
                                 <Pencil className="w-4 h-4 mr-2" /> Edit Profile
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => openServiceManagement(u)}>
+                              <DropdownMenuItem 
+                                onClick={() => openServiceManagement(u)}
+                                disabled={!hasPermission("can_manage_user_services")}
+                              >
                                 <Settings2 className="w-4 h-4 mr-2" /> Manage Services
                               </DropdownMenuItem>
                               {isAdmin && (
                                 <>
-                                  <DropdownMenuItem onClick={() => openRoleChange(u)}>
+                                  <DropdownMenuItem 
+                                    onClick={() => openRoleChange(u)}
+                                    disabled={!hasPermission("can_change_user_roles")}
+                                  >
                                     <ShieldAlert className="w-4 h-4 mr-2" /> Change Role
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => openReset(u)}>
+                                  <DropdownMenuItem 
+                                    onClick={() => openReset(u)}
+                                    disabled={!hasPermission("can_reset_user_passwords")}
+                                  >
                                     <KeyRound className="w-4 h-4 mr-2" /> Reset Password
                                   </DropdownMenuItem>
                                 </>
@@ -619,6 +676,7 @@ export default function DashboardUsers() {
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 onClick={() => handleToggleBlock(u)}
+                                disabled={!hasPermission("can_block_users")}
                                 className={u.status === "active" ? "text-destructive" : "text-success"}
                               >
                                 {u.status === "active" ? (
@@ -627,6 +685,26 @@ export default function DashboardUsers() {
                                   <><ShieldCheck className="w-4 h-4 mr-2" /> Unblock User</>
                                 )}
                               </DropdownMenuItem>
+                              {isAdmin && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    onClick={() => handleDeleteClick(u)}
+                                    disabled={!hasPermission("can_delete_users")}
+                                    className="text-destructive focus:text-destructive"
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" /> Delete User
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              {isMasterAdmin && u.role === "admin" && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => openPerms(u)}>
+                                    <ShieldCheck className="w-4 h-4 mr-2" /> Staff Permissions
+                                  </DropdownMenuItem>
+                                </>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         ) : (
@@ -641,6 +719,15 @@ export default function DashboardUsers() {
           )}
         </div>
       </div>
+
+      <StaffPermissionsDialog
+        open={permsOpen}
+        onOpenChange={setPermsOpen}
+        userId={permsUser?.user_id || ""}
+        userName={permsUser?.full_name || ""}
+        initialPermissions={permsData}
+        onUpdate={fetchUsers}
+      />
 
       {/* Create User Dialog */}
       <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) resetCreateForm(); }}>
@@ -821,6 +908,29 @@ export default function DashboardUsers() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete User Confirmation */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the account for <span className="font-bold text-foreground">{userToDelete?.full_name}</span>. 
+              All their profile data, wallet, and settings will be removed. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={processing}
+            >
+              {processing ? "Deleting..." : "Permanently Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

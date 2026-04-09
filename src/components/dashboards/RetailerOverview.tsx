@@ -17,7 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { apiFetch } from "@/services/api";
 import { useState, useEffect } from "react";
 
-const PIE_COLORS = ["hsl(var(--primary))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))"];
+const PIE_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))"];
 
 const statusIcon = { success: <CheckCircle2 className="w-3 h-3" />, pending: <Clock className="w-3 h-3" />, failed: <XCircle className="w-3 h-3" /> };
 const statusVariant = { success: "default" as const, pending: "secondary" as const, failed: "destructive" as const };
