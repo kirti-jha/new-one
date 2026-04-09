@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, AppRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
 
@@ -13,7 +13,7 @@ async function main() {
   const findOrCreateUser = async (
     email: string,
     fullName: string,
-    role: string,
+    role: AppRole,
     parentProfileId: string | null,
     balance: number,
     eWalletBalance = 0
