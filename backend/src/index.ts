@@ -22,6 +22,7 @@ import filesRoutes from "./routes/files";
 import staffRoutes from "./routes/staff";
 import publicServiceInfoRoutes from "./routes/publicServiceInfo";
 import publicContactRoutes from "./routes/publicContact";
+import dbRoutes from "./routes/db";
 
 export const prisma = new PrismaClient();
 
@@ -75,6 +76,7 @@ app.use("/api/service-config", serviceConfigRoutes);
 app.use("/api/tpin", tpinRoutes);
 app.use("/api/files", filesRoutes);
 app.use("/api/staff", staffRoutes);
+app.use("/api/db", dbRoutes);
 app.use("/api/public", publicServiceInfoRoutes);
 app.use("/api/public", publicContactRoutes);
 
