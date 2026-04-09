@@ -33,4 +33,12 @@ router.get("/status", async (_req, res) => {
   }
 });
 
+// GET /api/db/ping — simple route without any database call
+router.get("/ping", (_req, res) => {
+  res.json({
+    status: "ok",
+    message: "pong",
+  });
+});
+
 export default router;
